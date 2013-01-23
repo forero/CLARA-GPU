@@ -1,0 +1,19 @@
+Main
+====
+Initializes all the setup and performs the calculation
+Calls: Init, Propagate
+
+Init
+====
+Initializes an array of photons.
+
+Propagate
+=========
+Splits the array of photons into packets that will be fed into the GPU
+Calls: Scatter
+
+Scatter
+=======
+Actual implementation in CUDA that changes photon's properties
+
+		

@@ -1,3 +1,4 @@
+
 INC	:= -I$(CUDA_HOME)/include -I.
 LIB	:= -L$(CUDA_HOME)/lib64 -lcudart
 

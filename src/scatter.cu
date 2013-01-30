@@ -46,6 +46,10 @@ extern "C" void scatter_x(float *x, int min_id, int max_id){
 
   // copy data from device to host
   cudaMemcpy(x_aux, x_aux_d, sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
+
+  for(i=0;i<n_aux;i++){
+    x[min_id+i] = x_aux[i];
+  }
 }
 
 
@@ -65,5 +69,5 @@ extern "C" void TransportPhotons(float *x, int n_photons){
   
   for(i=0;i<n_packs;i++){
     scatter_x(x, i*pack_size, (i+1)*pack_size);
-  }
+  }  
 }

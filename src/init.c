@@ -8,7 +8,7 @@ float * InitCreation(int n_points){
     fprintf(stderr, "Problem in the allocation of property x\n");
     exit(1);
   }
-  return x;
+    return x;
 }
 
 void InitFrequency(float *x, int n_points){

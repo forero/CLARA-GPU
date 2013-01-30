@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "init.h"
-#include "transport.h"
+#include "scatter.h"
 
 int main(int argc, char **argv){
   float *x;

@@ -3,6 +3,7 @@
 #include <string.h>
 #include "init.h"
 #include "scatter.h"
+#include "io.h"
 
 int main(int argc, char **argv){
   float *x;
@@ -15,6 +16,8 @@ int main(int argc, char **argv){
   InitFrequency(x, n_points);
   
   TransportPhotons(x, n_points);
+
+  DumpPhotonList(x, n_points, "test.out");
   
   return 0;
 }

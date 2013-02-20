@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void DumpPhotonList(float *list, int n_points, char *filename){
+void DumpPhotonList(float *x, float *p, float *k, int n_points, char *filename){
   FILE *out;
   int i;
 
@@ -11,7 +11,9 @@ void DumpPhotonList(float *list, int n_points, char *filename){
   }
   
   for(i=0;i<n_points;i++){
-    fprintf(out, "%f\n", list[i]);
+    fprintf(out, "%f %f %f %f %f %f %f\n", x[i], 
+	    p[3*i + 0], p[3*i + 1], p[3*i +2], 
+	    k[3*i + 0], k[3*i + 1], k[3*i +2]);	    
   }
   fclose(out);
 }

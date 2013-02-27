@@ -26,28 +26,30 @@ __device__ void getPoint(float *x, curandState *state)
 __global__ void scatterStep(float *x, float *p, int N, curandState *const rngStates)
 {
 
-  int idx = blockIdx.x*blockDim.x + threadIdx.x;
+  int id = blockIdx.x*blockDim.x + threadIdx.x;
+  int idx = blockIdx.x*blockDim.x + (threadIdx.x*3 + 0);
+  int idy = blockIdx.x*blockDim.x + (threadIdx.x*3 + 1);
+  int idz = blockIdx.x*blockDim.x + (threadIdx.x*3 + 2);
 
   // Initialise the RNG
-  curandState localState = rngStates[idx];
+  curandState localState = rngStates[id];
   float f=0.0;
   float px=0.0;
   float py=0.0;
   float pz=0.0;
   float norm;
 
-  if (idx<N){    
+  if (id < N){    
     getPoint(&f, &localState);
     getPoint(&px, &localState);
     getPoint(&py, &localState);
     getPoint(&pz, &localState);
 
-    /*This memory assignation is wrong. has to be done right next time*/
-    while(fabs(x[idx])<10.0){
+    while(fabs(x[id])<10.0){
       p[idx] = p[idx] + px;
-      p[idx] = p[idx] + py;
-      p[idx] = p[idx] + pz;
-      x[idx] = x[idx] + f;          
+      p[idy] = p[idy] + py;
+      p[idz] = p[idz] + pz;
+      x[id] = x[id] + f;          
       getPoint(&f, &localState);
       getPoint(&px, &localState);
       getPoint(&py, &localState);

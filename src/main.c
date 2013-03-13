@@ -4,6 +4,7 @@
 #include "init.h"
 #include "scatter.h"
 #include "io.h"
+#include "transport.h"
 
 int main(int argc, char **argv){
   float *x;
@@ -23,6 +24,9 @@ int main(int argc, char **argv){
   InitFrequency(x, n_points);
   InitPosition(p, n_points);
   InitDirection(k, n_points);
+
+  /*Write files to disk*/
+  DumpPhotonList(x, p, k, n_points, "test.in");
 
   /*Sanity Checks Before RT*/
   InitCheckDirection(k, n_points);

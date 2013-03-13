@@ -3,7 +3,7 @@
 #include <math.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
-
+#include "struct.h"
 
 
 // RNG init kernel
@@ -23,13 +23,48 @@ __device__ void getPoint(float *x, curandState *state)
 }
 
 
+__device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, curandState *state, int *status) 
+/* 
+   it generates a random number \theta between -pi/2 and pi/2, then 
+   it generates u_parallel through u_parallel = a \tan\theta + x
+   then this value of u_parallel is kept if another random number 
+   between [0,1] is smaller than \exp^{-u_parallel^2}. 
+   At the end the value of u_parallel is multiplied by the sign of x.       
+*/
+{
+    int finished = 0;
+    float tmp0, tmp1, tmp2;        
+    int counter = 0;
+    
+    while (finished == 0) {
+      tmp0 = (curand_uniform(state) - 0.5)*PI ;
+      tmp1 = (a*tan(tmp0)) + fabs(x); 
+      tmp2  = curand_uniform(state);
+      if(tmp2 <= (exp(-(tmp1*tmp1)))) finished = 1;		
+      counter++;		
+      if(counter > MAX_VEL_ITER) {
+	finished = 1;		    
+	*status = EXCEEDED_ITERATIONS;
+      }	
+    }
+
+    if(x > 0.0){
+      *u_parallel = tmp1;
+    }else{    
+      *u_parallel = -tmp1;
+    }
+}
+
+
 __global__ void scatterStep(float *x, float *p, int N, curandState *const rngStates)
 {
 
   int id = blockIdx.x*blockDim.x + threadIdx.x;
-  int idx = blockIdx.x*blockDim.x + (threadIdx.x*3 + 0);
-  int idy = blockIdx.x*blockDim.x + (threadIdx.x*3 + 1);
-  int idz = blockIdx.x*blockDim.x + (threadIdx.x*3 + 2);
+  int idx = blockIdx.x*blockDim.x + (threadIdx.x*3  + 0);
+  int idy = blockIdx.x*blockDim.x + (threadIdx.x*3  + 1);
+  int idz = blockIdx.x*blockDim.x + (threadIdx.x*3  + 2);
+
+  int status;
 
   // Initialise the RNG
   curandState localState = rngStates[id];
@@ -40,22 +75,19 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
   float norm;
 
   if (id < N){    
-    getPoint(&f, &localState);
-    getPoint(&px, &localState);
-    getPoint(&py, &localState);
-    getPoint(&pz, &localState);
+    while((fabs(p[idx])<5.0) || (fabs(p[idy])<10.0) || (fabs(p[idz])<15.0)){
+      RND_lyman_parallel_vel(&f, x[id], 0.01, &localState, &status); 
 
-    while(fabs(x[id])<10.0){
-      p[idx] = p[idx] + px;
-      p[idy] = p[idy] + py;
-      p[idz] = p[idz] + pz;
-      x[id] = x[id] + f;          
-      getPoint(&f, &localState);
       getPoint(&px, &localState);
       getPoint(&py, &localState);
       getPoint(&pz, &localState);
+      
+      p[idx] = p[idx] + px;
+      p[idy] = p[idy] + py;
+      p[idz] = p[idz] + pz;
+      x[id] = x[id] + f/1000.0;          
+      __syncthreads();
     }
-
   }
   
 }
@@ -77,6 +109,12 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   struct cudaDeviceProp     deviceProperties;
   struct cudaFuncAttributes funcAttributes;
   cudaError_t cudaResult = cudaSuccess;
+
+  cudaResult = cudaGetLastError();
+  if (cudaResult!=cudaSuccess){
+    printf( "Error after device!\n" );
+    printf("CUDA error: %s\n", cudaGetErrorString(cudaResult));
+  }  
 
   
   m_device = 0;
@@ -111,8 +149,9 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   cudaMemcpy(x_aux_d, x_aux, sizeof(float) * n_aux, cudaMemcpyHostToDevice);
   cudaMemcpy(p_aux_d, p_aux, 3 * sizeof(float) * n_aux, cudaMemcpyHostToDevice);
 
-  blockSize = 128; // This is the number of threads inside a block
-  nBlocks = n_aux/blockSize + (n_aux%blockSize == 0?0:1); // This is the number of blocks
+  blockSize = 512; // This is the number of threads inside a block
+  nBlocks = (3*n_aux)/blockSize + (n_aux%blockSize == 0?0:1); // This is the number of blocks
+  fprintf(stdout, "nBlocks %d\n", nBlocks);
 
   //allocate memory for RNG states
   curandState *d_rngStates = 0;
@@ -135,27 +174,4 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
       p[3*(min_id+i)+k] = p_aux[3*i + k]; 
     }    
   }
-}
-
-
-extern "C" void TransportPhotons(float *x, float *p, float *k, int n_photons){
-  int pack_size, last_pack_size;  
-  int n_packs;
-  int i;
-
-  pack_size = 400;
-  
-  n_packs = n_photons/pack_size;
-  last_pack_size = n_photons%pack_size;
-  
-  fprintf(stdout, "Photons to transport %d\n", n_photons);
-  fprintf(stdout, "%d packs of size %d\n", n_packs, pack_size);
-  fprintf(stdout, "one last pack of size %d\n", last_pack_size);
-  
-  for(i=0;i<n_packs;i++){
-    scatter_bunch(x, p, i*pack_size, (i+1)*pack_size);
-  }  
-
-  scatter_bunch(x, p, i*pack_size, i*pack_size + last_pack_size);  
-
 }

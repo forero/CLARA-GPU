@@ -63,10 +63,10 @@ typedef struct global_setup
   int NPackages;
 
   /*Define some physical characteristics of the problem*/
-  float Temperature;
-  float Tau;
-  float InputFrequency;
-  float Vmax;
+  double Temperature;
+  double Tau;
+  double InputFrequency;
+  double Vmax;
   
   /*parameters for the dust model*/
   double GrainSize;         /*in cm*/

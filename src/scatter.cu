@@ -60,9 +60,10 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
 {
 
   int id = blockIdx.x*blockDim.x + threadIdx.x;
-  int idx = blockIdx.x*blockDim.x + (threadIdx.x*3  + 0);
+  int idx = blockIdx.x*blockDim.x + (threadIdx.x*3  + 0); 
   int idy = blockIdx.x*blockDim.x + (threadIdx.x*3  + 1);
   int idz = blockIdx.x*blockDim.x + (threadIdx.x*3  + 2);
+
 
   int status;
 
@@ -75,7 +76,7 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
   float norm;
 
   if (id < N){    
-    while((fabs(p[idx])<5.0) || (fabs(p[idy])<10.0) || (fabs(p[idz])<15.0)){
+    while((fabs(p[idx])< 1.0E2) || (fabs(p[idy])<1.0E1) || (fabs(p[idz])< 1.0E1)){
       RND_lyman_parallel_vel(&f, x[id], 0.01, &localState, &status); 
 
       getPoint(&px, &localState);
@@ -85,7 +86,7 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
       p[idx] = p[idx] + px;
       p[idy] = p[idy] + py;
       p[idz] = p[idz] + pz;
-      x[id] = x[id] + f/1000.0;          
+      x[id] = x[id] + f/1E5;          
       __syncthreads();
     }
   }
@@ -167,6 +168,8 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   // copy data from device to host
   cudaMemcpy(x_aux, x_aux_d, sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
   cudaMemcpy(p_aux, p_aux_d, 3 * sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
+
+  printf("%f\n", All.Tau);
 
   for(i=0;i<n_aux;i++){
     x[min_id+i] = x_aux[i];

@@ -27,12 +27,12 @@ TestRND              0
 TestPerpVel          0
 
 % main parameters controling the algorithm
-NPackages            50000
+NPackages            5000
 InputFrequency	     0.0
 
 % define some physical parameters of the problem to solve
 Temperature          10000.0 % in  Kelvin
-Tau                  1.0e6
+Tau 		     1.0e6
 Vmax		     50.0 % in km/s
 
 

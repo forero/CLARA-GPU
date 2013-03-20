@@ -17,6 +17,8 @@ int main(int argc, char **argv){
   /*parse the parameter setup*/
   ReadParameters(argv[1]);
 
+  printf("%e\n", All.Tau);
+
   /*Create the photons*/
   x = InitCreationFrequency(All.NPackages);
   p = InitCreationPosition(All.NPackages);

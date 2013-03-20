@@ -1,0 +1,6 @@
+*.o
+*~
+*usedvalues
+*.in
+*.out
+clara

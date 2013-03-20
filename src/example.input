@@ -1,0 +1,52 @@
+% inputs
+InputDir         /home/forero/Dropbox/CLARA-GPU/src
+
+% outputs
+OutputDir        /home/forero/Dropbox/CLARA-GPU/src
+OutputFile       FirstRun
+OutputTestFile	 TestRun
+
+% output options
+OutputInitList         1
+OutputFinalList        1
+OutputBinary           0
+RandomSeed	       1973
+
+% define the problem/test to solve
+NeufeldSlab          0
+NeufeldCube          0
+ExpandingSphere      0
+RotatingSphere       1
+HomogeneousInit      0
+
+% define the tests to solve
+TestParallelVel      0
+TestParallelVelFast  0
+TestFirstScatter     0
+TestRND              0
+TestPerpVel          0
+
+% main parameters controling the algorithm
+NPackages            50000
+InputFrequency	     0.0
+
+% define some physical parameters of the problem to solve
+Temperature          10000.0 % in  Kelvin
+Tau                  1.0e6
+Vmax		     50.0 % in km/s
+
+
+% parameters of the dust model
+GrainSize             1.0e-6
+TauDust               1.0
+DustAbsorptionProb    0.5
+
+% parameters for the tests
+Test_a               0.00014
+Test_x               2.0
+
+% Units
+UnitMass_in_g                      1.989e+43
+UnitVelocity_in_cm_per_s           100000.0
+UnitLength_in_cm                   3.08568e+21
+UnitLymanLuminosity                1.0e+41      % cgs

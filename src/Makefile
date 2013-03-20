@@ -3,9 +3,26 @@ INC	:= -I$(CUDA_HOME)/include -I.
 LIB	:= -L$(CUDA_HOME)/lib64 -lcudart
 
 NVCCFLAGS	:= -DCUDA_DEVICE=0 --ptxas-options=-v --use_fast_math
+EXEC = clara
 
-all: 		clara
 
-clara:		main.c io.c init.c transport.c scatter.cu 
-		nvcc scatter.cu transport.c init.c io.c main.c   -o clara \
-		$(INC) $(NVCCFLAGS) $(LIB)
+
+OBJS = main.o struct.o parse.o io.o init.o transport.o scatter.o 
+INCLUDES = struct.h parse.h io.h init.h transport.h scatter.h
+
+.SUFFIXES: .o .c 
+.c.o:
+	nvcc $(NVCCFLAGS) $(INC) $(LIB) -c $<
+
+.SUFFIXES: .o .cu
+.cu.o:
+	nvcc $(NVCCFLAGS) $(INC) $(LIB) -c $<
+
+
+all: $(EXEC)
+
+$(EXEC): $(OBJS) $(INCLUDES)
+	nvcc $(OBJS) $(INC) $(NVCCFLAGS) $(LIB) -o $(EXEC)
+
+clean:
+		rm -f $(EXEC) *.o

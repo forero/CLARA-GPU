@@ -5,40 +5,42 @@
 #include "scatter.h"
 #include "io.h"
 #include "transport.h"
+#include "parse.h"
+#include "struct.h"
 
 int main(int argc, char **argv){
   float *x;
   float *p;
   float *k;
   int n_points;
-
-  /*get the parameter setup*/
-  n_points = atoi(argv[1]);
+    
+  /*parse the parameter setup*/
+  ReadParameters(argv[1]);
 
   /*Create the photons*/
-  x = InitCreationFrequency(n_points);
-  p = InitCreationPosition(n_points);
-  k = InitCreationDirection(n_points);
+  x = InitCreationFrequency(All.NPackages);
+  p = InitCreationPosition(All.NPackages);
+  k = InitCreationDirection(All.NPackages);
 
   /*Initialize them*/
-  InitFrequency(x, n_points);
-  InitPosition(p, n_points);
-  InitDirection(k, n_points);
+  InitFrequency(x, All.NPackages);
+  InitPosition(p, All.NPackages);
+  InitDirection(k, All.NPackages);
 
   /*Write files to disk*/
-  DumpPhotonList(x, p, k, n_points, "test.in");
+  DumpPhotonList(x, p, k, All.NPackages, "test.in");
 
   /*Sanity Checks Before RT*/
-  InitCheckDirection(k, n_points);
+  InitCheckDirection(k, All.NPackages);
   
   /*Make the radiative transfer*/
-  TransportPhotons(x, p, k, n_points);
+  TransportPhotons(x, p, k, All.NPackages);
 
   /*Sanity Checks after RT*/
-  InitCheckDirection(k, n_points);
+  InitCheckDirection(k, All.NPackages);
 
   /*Write files to disk*/
-  DumpPhotonList(x, p, k, n_points, "test.out");
+  DumpPhotonList(x, p, k, All.NPackages, "test.out");
   
   return 0;
 }

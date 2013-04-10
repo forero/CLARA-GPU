@@ -56,14 +56,54 @@ __device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, cura
 }
 
 
-__global__ void scatterStep(float *x, float *p, int N, curandState *const rngStates)
+__device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S)
+/*depending on the geometrical consideration of the problem at hand,
+  decides if the photon is still inside*/
+{
+    int is_in;
+    double radius;
+    is_in = 1;
+
+    if(S->NeufeldSlab){
+	if(fabs(pos_z)<S->Tau){
+	    is_in = 1;
+	}else{
+	    is_in = 0 ;
+	}
+    }
+
+    if(S->NeufeldCube){
+	if(fabs(pos_x)<S->Tau && 
+	   fabs(pos_y)<S->Tau &&
+	   fabs(pos_z)<S->Tau){
+	    is_in = 1;
+	}else{
+	    is_in = 0 ;
+	}
+    }
+
+    if(S->ExpandingSphere||S->RotatingSphere){
+	radius = pos_x*pos_x + pos_y*pos_y + pos_z*pos_z;
+	radius = sqrt(radius);
+	if(radius< S->Tau){
+	    is_in = 1;
+	}else{
+	    is_in = 0 ;
+	}
+    }
+    
+    return is_in;
+}
+
+
+
+__global__ void scatterStep(float *x, float *p, int N, curandState *const rngStates, setup *S)
 {
 
   int id = blockIdx.x*blockDim.x + threadIdx.x;
   int idx = blockIdx.x*blockDim.x + (threadIdx.x*3  + 0); 
   int idy = blockIdx.x*blockDim.x + (threadIdx.x*3  + 1);
   int idz = blockIdx.x*blockDim.x + (threadIdx.x*3  + 2);
-
 
   int status;
 
@@ -76,12 +116,13 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
   float norm;
 
   if (id < N){    
-    while((fabs(p[idx])< 1.0E2) || (fabs(p[idy])<1.0E1) || (fabs(p[idz])< 1.0E1)){
+    while(PropagateIsInside(p[idx], p[idy], p[idz], S)){
       RND_lyman_parallel_vel(&f, x[id], 0.01, &localState, &status); 
 
       getPoint(&px, &localState);
       getPoint(&py, &localState);
       getPoint(&pz, &localState);
+      
       
       p[idx] = p[idx] + px;
       p[idy] = p[idy] + py;
@@ -102,7 +143,7 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   int blockSize;
   int nBlocks;
   int i,k;
-
+  setup *S;
   unsigned int m_seed;
   unsigned int m_numSims;
   unsigned int m_device;
@@ -116,6 +157,7 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
     printf( "Error after device!\n" );
     printf("CUDA error: %s\n", cudaGetErrorString(cudaResult));
   }  
+
 
   
   m_device = 0;
@@ -134,13 +176,17 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
     fprintf(stderr, "Problem allocating the auxiliary array\n");
     exit(1);
   }
-  
+
+  //fill the auxiliary variables
   for(i=0;i<n_aux;i++){
     x_aux[i] = x[min_id+i];
     for(k=0;k<3;k++){
       p_aux[3*i + k] = p[3*(min_id+i)+k];
     }
   }
+
+  cudaMalloc ( (void**) &S, sizeof(setup));
+  cudaMemcpy(S, &All, sizeof(setup), cudaMemcpyHostToDevice);
 
   // allocate memory on device
   cudaMalloc((void **) &x_aux_d, n_aux * sizeof(float));
@@ -163,7 +209,7 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   initRNG<<<nBlocks, blockSize>>>(d_rngStates, m_seed);
 
   // Make the random step until all the photons escape
-  scatterStep <<< nBlocks, blockSize >>> (x_aux_d, p_aux_d, n_aux, d_rngStates);
+  scatterStep <<< nBlocks, blockSize >>> (x_aux_d, p_aux_d, n_aux, d_rngStates, S);
 
   // copy data from device to host
   cudaMemcpy(x_aux, x_aux_d, sizeof(float) * n_aux, cudaMemcpyDeviceToHost);

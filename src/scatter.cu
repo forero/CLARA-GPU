@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
 #include "struct.h"
-
+#include "vector.h"
 
 /*
   RNG kernel initialization
@@ -28,16 +28,26 @@ __device__ void getPoint(float *x, curandState *state)
 }
 
 
+__device__ void RND_spherical(float *vec, curandState *state)
+/*vector randomly distributed over the sphere*/
+{
+    float theta, phi;
+    theta = acos(2.0*(curand_uniform(state) -0.5));
+    phi = 2.0*PI*curand_uniform(state);
+    vec[0] = sin(theta)*cos(phi);
+    vec[1] = sin(theta)*sin(phi);
+    vec[2] = cos(theta);
+}
+
+__device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, curandState *state, int *status) 
 /* 
    Generates the parallel velocity to the photon propagation.
-
    First generates a random number \theta between -pi/2 and pi/2, then 
    it generates u_parallel through u_parallel = a \tan\theta + x
    then this value of u_parallel is kept if another random number 
    between [0,1] is smaller than \exp^{-u_parallel^2}. 
    Finally, the value of u_parallel is multiplied by the sign of x.       
 */
-__device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, curandState *state, int *status) 
 {
     int finished = 0;
     float tmp0, tmp1, tmp2;        
@@ -62,11 +72,139 @@ __device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, cura
     }
 }
 
+__device__ void RND_lyman_perp_vel(float *u_1, float *u_2, curandState *state)
+/* 
+   Genereates magnitudes for the atom's perpendicular velocities using
+   Box&Muller method. 
+*/
+{
+  float tmp1, tmp2;
+  float vel_1, vel_2;
+  tmp1 = curand_uniform(state);
+  tmp2 = curand_uniform(state);
+  vel_1 = sqrt(-log(tmp1))*cos(2.0*PI*tmp2);
+  vel_2 = sqrt(-log(tmp1))*sin(2.0*PI*tmp2);
+  *u_1 = vel_1;
+  *u_2 = vel_2;  
+  return;
+}
+
+
+__device__ void RND_pair(float *r_1, float *r_2, curandState *state){
+  /*generates a pair of random numbers with norm less than one*/
+  int finished;
+  float rand_1, rand_2;
+
+  finished = 0;
+  while (finished == 0) {
+    rand_1 = 2.0*(curand_uniform(state) - 0.5);
+    rand_2 = 2.0*(curand_uniform(state) - 0.5);
+    if(rand_1*rand_1 + rand_2*rand_2 < 1.0){
+      finished = 1;
+    }
+  }    
+  *r_1 = rand_1;
+  *r_2 = rand_2;
+}
+
+
+__device__ void RND_lyman_atom(float *Vel, float *DirPhoton, float *DirOutPhoton, float x, float a ,curandState *state, int *status)
+/* Obtains a random velocity for the hydrogen atom
+   the velocity is in units of the termal velocity.*/
+{
+    int i;
+    float LocalVel[3];
+    float x_axis[3];
+    float y_axis[3];
+    float z_axis[3];
+    float rand_axis[3];
+    float R_1, R_2, R_3, T, mu, iso;
+    float  x_corewing;
+    float exponent;
+
+    /*get first the parallel velocity*/
+    RND_lyman_parallel_vel(&(LocalVel[2]), x, a, state, status);
+
+    /*get the perpendicular velocity*/
+    RND_lyman_perp_vel(&(LocalVel[0]), &(LocalVel[1]), state);
+
+    /*get the axis in the coordinate system of the atom, where 
+      the z direction is the propagation direction of the photon*/
+    for(i=0;i<3;i++){
+	z_axis[i] = DirPhoton[i];
+    }
+
+    /*get another random vector*/
+    RND_spherical(rand_axis, state);
+
+    /*make the cross product and get y_axis*/
+    cross_product(z_axis, rand_axis, y_axis);
+
+    /*make the cross product and get x_axis*/
+    cross_product(y_axis, z_axis, x_axis);
+
+    /*normalize the vectors*/
+    normalize(x_axis);
+    normalize(y_axis);
+    normalize(z_axis);
+
+    /*see if they are perpendicular*/
+    rand_axis[0] = point_product(x_axis, z_axis);
+    rand_axis[1] = point_product(x_axis, y_axis);
+    rand_axis[2] = point_product(y_axis, z_axis);
+    if(fabs(rand_axis[0]) + fabs(rand_axis[1])+ fabs(rand_axis[2])>1.0e-10){
+      *status = NULL_NORM;
+    }
+
+    /*Now make the transformation into the coordinate frame of the lab*/
+    for(i=0;i<3;i++){
+	Vel[i] = LocalVel[0]*x_axis[i] + LocalVel[1]*y_axis[i] + LocalVel[2]*z_axis[i];
+    }
+
+    /*
+      now get the outgoing direction of the photon, 
+      taking advantage of the vector basis I have just generated
+      Here I just take the value of dijkstra for the wing.
+    */
+
+    /*first define if it's in the core or not*/    
+
+    x_corewing = 1.59 - 0.60*log10(a) - 0.03*log10(a)*log10(a);
+
+    R_1 = curand_uniform(state);
+
+    iso = curand_uniform(state);
+    if(iso<(1.0/3.0)){/*isotropic*/
+      mu = (2.0*R_1 - 1.0);
+    }else{
+      if(fabs(x)<x_corewing){			/*In the core*/
+	/*now we make the decision if it's isotropic or not*/
+	T = (1.0/7.0)*(14.0  - 24.0*R_1  + sqrt(245.0 - 672.0*R_1 + 576*R_1*R_1));	  
+	exponent = 1.0/3.0; /*this makes cuda compiler happy*/
+	mu = 1.0/(pow(T,exponent)) - pow(T, exponent);	
+      }else{
+	T = 2.0 - 4.0*R_1  + sqrt(5.0 -16.0*R_1 + 16*R_1*R_1);
+	exponent = 1.0/3.0; /*this makes cuda compiler happy*/
+	mu = 1.0/(pow(T,exponent)) - pow(T, exponent);	
+      }
+    }
+    
+    RND_pair(&R_1, &R_2, state);    
+    R_3 = R_1*R_1 + R_2*R_2;
+    for(i=0;i<3;i++){
+	DirOutPhoton[i] = 
+	    sqrt((1.0-(mu*mu))/R_3)*R_1*x_axis[i] + 
+	    sqrt((1.0-(mu*mu))/R_3)*R_2*y_axis[i] + 
+	    mu*z_axis[i];
+    }
+}
+
+
+__device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S)
 /*
   Geometrical test. It decides whether the photon is still inside the
   propagation volume.
 */
-__device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S)
 {
     int is_in;
     double radius;
@@ -142,7 +280,6 @@ __global__ void scatterStep(float *x, float *p, float *k, int N, curandState *co
 
   /*Initializes the random number generator*/
   curandState localState = rngStates[id];
-
 
   if (id < N){    
     while(PropagateIsInside(p[idx], p[idy], p[idz], S)){

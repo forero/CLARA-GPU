@@ -5,6 +5,7 @@
 #define EPSILON_DOUBLE 1E-6
 #define MAX_VEL_ITER 1000000
 #define EXCEEDED_ITERATIONS 10
+#define NULL_NORM           20
 #define MAX_FILENAME_SIZE 1024
 
 /*some units in (cgs) sistem*/

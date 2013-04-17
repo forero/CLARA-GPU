@@ -53,11 +53,10 @@ void InitPosition(float *p, int n_points){
 void InitDirection(float *k, int n_points){
   int i;
   float theta, phi;
-  theta = acos(drand48());
-  phi = 2.0*PI*drand48();
-
   /*random directions over the sphere*/
   for(i=0;i<n_points;i++){
+    theta = acos((drand48()-0.5)*2.0);
+    phi = 2.0*PI*drand48();    
     k[3*i + 0] = sin(theta)*cos(phi);
     k[3*i + 1] = sin(theta)*sin(phi);
     k[3*i + 2] = cos(theta);

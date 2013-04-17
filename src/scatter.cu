@@ -111,23 +111,38 @@ __device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S
   This is CLARA's core.
   This routine computes all the scatterings until the photon escapes.
 */
-__global__ void scatterStep(float *x, float *p, int N, curandState *const rngStates, setup *S)
+__global__ void scatterStep(float *x, float *p, float *k, int N, curandState *const rngStates, setup *S)
 {
+  /*physical variables that define the medium*/
+  float HIInteractionProb, dust_sigma;
+  float nu_doppler, v_thermal, temperature;
 
+  /*random variables that will define dust or hydrogen interaction*/
+  float rand_interaction, rand_absorption;
+  
+  /*physical variables that defie the photon state*/
+  float v_parallel, g_recoil, lya_sigma, tau, x_in, x_out, r, a_in;
+  float k_out_photon[3];
+  float u_atom[3];
+
+  /*memory thread on the GPU*/
   int id = blockIdx.x*blockDim.x + threadIdx.x;
   int idx = blockIdx.x*blockDim.x + (threadIdx.x*3  + 0); 
   int idy = blockIdx.x*blockDim.x + (threadIdx.x*3  + 1);
   int idz = blockIdx.x*blockDim.x + (threadIdx.x*3  + 2);
 
-  int status;
 
-  /*Initializes the random number generator*/
-  curandState localState = rngStates[id];
   float f=0.0;
   float px=0.0;
   float py=0.0;
   float pz=0.0;
   float norm;
+  int status;
+
+
+  /*Initializes the random number generator*/
+  curandState localState = rngStates[id];
+
 
   if (id < N){    
     while(PropagateIsInside(p[idx], p[idy], p[idz], S)){
@@ -159,15 +174,18 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
   - Number of blocks
   - Number of threads
 */
-extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
+extern "C" void scatter_bunch(float *x, float *p, float *k, int min_id, int max_id){
   float *x_aux;
   float *p_aux;
+  float *k_aux;
   float *x_aux_d;
   float *p_aux_d;
+  float *k_aux_d;
+
   int n_aux;
   int blockSize;
   int nBlocks;
-  int i,k;
+  int i,l;
   setup *S;
   unsigned int m_seed;
   unsigned int m_numSims;
@@ -206,11 +224,17 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
     exit(1);
   }
 
+  if(!(k_aux = (float *)malloc(3 * n_aux * sizeof(float)))){
+    fprintf(stderr, "Problem allocating the auxiliary array\n");
+    exit(1);
+  }
+
   //fill the auxiliary variables
   for(i=0;i<n_aux;i++){
     x_aux[i] = x[min_id+i];
-    for(k=0;k<3;k++){
-      p_aux[3*i + k] = p[3*(min_id+i)+k];
+    for(l=0;l<3;l++){
+      p_aux[3*i + l] = p[3*(min_id+i)+l];
+      k_aux[3*i + l] = k[3*(min_id+i)+l];
     }
   }
 
@@ -218,10 +242,12 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   // allocate memory on device
   cudaMalloc((void **) &x_aux_d, n_aux * sizeof(float));
   cudaMalloc((void **) &p_aux_d, 3 * n_aux * sizeof(float));
+  cudaMalloc((void **) &k_aux_d, 3 * n_aux * sizeof(float));
 
   // copy data from host to device
   cudaMemcpy(x_aux_d, x_aux, sizeof(float) * n_aux, cudaMemcpyHostToDevice);
   cudaMemcpy(p_aux_d, p_aux, 3 * sizeof(float) * n_aux, cudaMemcpyHostToDevice);
+  cudaMemcpy(k_aux_d, k_aux, 3 * sizeof(float) * n_aux, cudaMemcpyHostToDevice);
 
   blockSize = 512; // This is the number of threads inside a block
   nBlocks = (3*n_aux)/blockSize + (n_aux%blockSize == 0?0:1); // This is the number of blocks
@@ -236,18 +262,20 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   initRNG<<<nBlocks, blockSize>>>(d_rngStates, m_seed);
 
   // Make the random step until all the photons escape
-  scatterStep <<< nBlocks, blockSize >>> (x_aux_d, p_aux_d, n_aux, d_rngStates, S);
+  scatterStep <<< nBlocks, blockSize >>> (x_aux_d, p_aux_d, k_aux_d, n_aux, d_rngStates, S);
 
   // copy data from device to host
   cudaMemcpy(x_aux, x_aux_d, sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
   cudaMemcpy(p_aux, p_aux_d, 3 * sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
+  cudaMemcpy(k_aux, k_aux_d, 3 * sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
 
   printf("%f\n", All.Tau);
 
   for(i=0;i<n_aux;i++){
     x[min_id+i] = x_aux[i];
-    for(k=0;k<3;k++){
-      p[3*(min_id+i)+k] = p_aux[3*i + k]; 
+    for(l=0;l<3;l++){
+      p[3*(min_id+i)+l] = p_aux[3*i + l]; 
+      k[3*(min_id+i)+l] = k_aux[3*i + l]; 
     }    
   }
 }

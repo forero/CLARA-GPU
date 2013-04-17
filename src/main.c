@@ -19,6 +19,9 @@ int main(int argc, char **argv){
 
   printf("%e\n", All.Tau);
 
+  /*Initialize the random number generator for the photons*/
+  srand48(All.RandomSeed);
+
   /*Create the photons*/
   x = InitCreationFrequency(All.NPackages);
   p = InitCreationPosition(All.NPackages);

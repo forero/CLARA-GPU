@@ -20,7 +20,7 @@ void TransportPhotons(float *x, float *p, float *k, int n_photons){
   fprintf(stdout, "one last pack of size %d\n", last_pack_size);
   
   for(i=0;i<n_packs;i++){
-    scatter_bunch(x, p, i*pack_size, (i+1)*pack_size);
+    scatter_bunch(x, p, k, i*pack_size, (i+1)*pack_size);
   }  
-  scatter_bunch(x, p, i*pack_size, i*pack_size + last_pack_size);  
+  scatter_bunch(x, p, k, i*pack_size, i*pack_size + last_pack_size);  
 }

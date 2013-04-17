@@ -9,7 +9,7 @@
 
 /*some units in (cgs) sistem*/
 #define PI 3.14159265358979323846264338327
-#define G_GRAVITY         6.672e-8
+#define G_GRAVITY         6.672E-8 /*in cgs units*/
 #define HUBBLE            3.2407789e-18 /* in h/sec */
 #define HUBBLE_TIME       3.09e+17   /*in sec/h*/
 #define C_LIGHT           2.9979e+10   /*cm/s*/
@@ -21,7 +21,7 @@
 #define GAMMA             1.66666 
 #define CHARGEELECTRON	  4.8032E-10  /*E.S.E			H.Scheffler/Elsässer Bau und Physik der Galaxies*/
 #define ELECTRONMASS	  9.109382616E-28			/*g				wikipedia*/
-#define PLANCK            6.626075E-27 
+#define PLANCK            6.626075E-27  /*cgs units*/
 
 /*Lyman alpha related constants*/
 #define Lya_nu_center_CGS 2.466E15
@@ -63,10 +63,10 @@ typedef struct global_setup
   int NPackages;
 
   /*Define some physical characteristics of the problem*/
-  double Temperature;
+  double Temperature; /*in Kelvin*/
   double Tau;
-  double InputFrequency;
-  double Vmax;
+  double InputFrequency; /*in adimensional units*/
+  double Vmax; /*in km/s*/
   
   /*parameters for the dust model*/
   double GrainSize;         /*in cm*/

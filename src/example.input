@@ -10,7 +10,7 @@ OutputTestFile	 TestRun
 OutputInitList         1
 OutputFinalList        1
 OutputBinary           0
-RandomSeed	       1973
+RandomSeed	       1981
 
 % define the problem/test to solve
 NeufeldSlab          1

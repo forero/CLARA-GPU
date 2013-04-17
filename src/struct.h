@@ -79,7 +79,8 @@ typedef struct global_setup
   double Tau;
   double InputFrequency; /*in adimensional units*/
   double Vmax; /*in km/s*/
-  
+  double NumberDensityHI; /*canonical number density*/
+
   /*parameters for the dust model*/
   double GrainSize;         /*in cm*/
   double TauDust;

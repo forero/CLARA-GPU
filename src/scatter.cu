@@ -4,7 +4,9 @@
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
 #include "struct.h"
-#include "vector.h"
+/*this makes the compiler happy*/
+#include "vector.cu"
+
 
 /*
   RNG kernel initialization
@@ -200,50 +202,8 @@ __device__ void RND_lyman_atom(FLOAT *Vel, FLOAT *DirPhoton, FLOAT *DirOutPhoton
 }
 
 
-__device__ int PropagateIsInside(FLOAT pos_x, FLOAT pos_y, FLOAT pos_z, setup *S)
-/*
-  Geometrical test. It decides whether the photon is still inside the
-  propagation volume.
-*/
-{
-    int is_in;
-    double radius;
-    is_in = 1;
-
-    /*Infinite Slab*/
-    if(S->NeufeldSlab){
-	if(fabs(pos_z)<S->Tau){
-	    is_in = 1;
-	}else{
-	    is_in = 0 ;
-	}
-    }
-
-    /*Cube*/
-    if(S->NeufeldCube){
-	if(fabs(pos_x)<S->Tau && 
-	   fabs(pos_y)<S->Tau &&
-	   fabs(pos_z)<S->Tau){
-	    is_in = 1;
-	}else{
-	    is_in = 0 ;
-	}
-    }
-
-    /*Sphere*/
-    if(S->ExpandingSphere||S->RotatingSphere){
-      radius = pos_x*pos_x + pos_y*pos_y + pos_z*pos_z;
-      radius = sqrt(radius);
-      if(radius< S->Tau){
-	is_in = 1;
-      }else{
-	is_in = 0 ;
-      }
-    }
-    
-    return is_in;
-}
-
+/*This makes the compiler happy*/
+#include "propagate.cu"
 
 /*
   This is CLARA's core.
@@ -251,23 +211,21 @@ __device__ int PropagateIsInside(FLOAT pos_x, FLOAT pos_y, FLOAT pos_z, setup *S
 */
 __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *const rngStates, setup *S)
 {
-  /*physical variables that define the medium*/
-  FLOAT HIInteractionProb, dust_sigma;
-  FLOAT nu_doppler, v_thermal, temperature;
-
-  /*random variables that will define dust or hydrogen interaction*/
-  FLOAT rand_interaction, rand_absorption;
-  
-  /*physical variables that defie the photon state*/
-  FLOAT v_parallel, g_recoil, lya_sigma, tau, x_in, x_out, r, a_in;
-  FLOAT k_out_photon[3];
-  FLOAT u_atom[3];
+  /*physical variables that define the photon state*/
   FLOAT pos[3];
   FLOAT dir[3];
-  FLOAT x_photon;
+  FLOAT r_travel, x_photon, x_comoving;
+  FLOAT last_x;
+
+  /*physical variables that define the medium*/
+  FLOAT a, nu_doppler, n_HI, v_thermal, BulkVel[3], temperature;  
+
+  /*status variables*/
   int photon_status;
   int program_status;
   int n_iter=0;
+  int i;
+
   /*memory thread on the GPU*/
   int id = blockIdx.x*blockDim.x + threadIdx.x;
   int idx = blockIdx.x*blockDim.x + (threadIdx.x*3  + 0); 
@@ -298,17 +256,58 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *co
   
   if (id < N){    
     while(PropagateIsInside(pos[0], pos[1], pos[2], S) && (photon_status==ACTIVE) && (n_iter<MAX_ITER)){
-      RND_lyman_parallel_vel(&f, x_photon, 0.01, &localState, &program_status); 
+      //      RND_lyman_parallel_vel(&f, x_photon, 0.01, &localState, &program_status); 
+
+      /* get the temperature at this point*/
+      PropagateGetTemperature(&temperature, &(pos[0]), S);
+      
+      /* get the number density at this point*/
+      PropagateGetNumberDensity(&n_HI, pos, S);
+      
+      /*get the bulk velocity of the fluid at this point*/
+      PropagateGetBulkVel(BulkVel, pos, S);
+      
+      /*Get the thermal velocity and doppler broadening*/
+      nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
+      a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
+      v_thermal = (nu_doppler/Lya_nu_center_CGS)*C_LIGHT;/*In cm/s*/
+      
+      /*change the value of the frequency to one comoving with the fluid*/
+      PropagateLorentzFreqChange(&x_photon, dir, BulkVel, v_thermal, -1); 
+            
+      /*change the direction of the photon to the fluid frame*/
+      PropagateLorentzDirChange(&(dir[0]), BulkVel, -1);
+                  
+      /*--------------------------------------------------------------------------*/
+      /*Change the frequency and the Propagation direction, find the displacement*/	
+      //      photon_status = PropagateStep(&x_photon, dir, &r_travel, a, n_HI, &localState, S);	    	
+      /*--------------------------------------------------------------------------*/
+            
+      /*Change the new direction to the lab frame value*/
+      PropagateLorentzDirChange(&(dir[0]), BulkVel, 1);
+      
+      /*Change the frequency comoving to the lab frame value*/
+      PropagateLorentzFreqChange(&x_photon, dir, BulkVel, v_thermal, 1); 
+      
+      
+      /*Update the position*/
+      for(i=0;i<3;i++){
+	pos[i] += r_travel*dir[i];	    
+      }
+      
+      n_iter++;
       
       /*propagate routine*/
-      getPoint(&px, &localState);
-      getPoint(&py, &localState);
-      getPoint(&pz, &localState);      
-      pos[0] = pos[0] + px;
-      pos[1] = pos[1] + py;
-      pos[2] = pos[2] + pz;
-      x_photon = x_photon + f/1E5;          
-      n_iter++;
+      /*
+	getPoint(&px, &localState);
+	getPoint(&py, &localState);
+	getPoint(&pz, &localState);      
+	pos[0] = pos[0] + px;
+	pos[1] = pos[1] + py;
+	pos[2] = pos[2] + pz;
+	x_photon = x_photon + f/1E5;          
+	n_iter++;
+      */
     }
     __syncthreads();
   }

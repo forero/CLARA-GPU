@@ -6,7 +6,9 @@
 #include "struct.h"
 
 
-// RNG init kernel
+/*
+  RNG kernel initialization
+*/
 __global__ void initRNG(curandState *const rngStates,
                         const unsigned int seed)
 {
@@ -17,20 +19,25 @@ __global__ void initRNG(curandState *const rngStates,
     curand_init(seed, tid, 0, &rngStates[tid]);
 }
 
+/*
+  float random number generator
+*/
 __device__ void getPoint(float *x, curandState *state)
 {
   *x = curand_normal_double(state);
 }
 
 
-__device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, curandState *state, int *status) 
 /* 
-   it generates a random number \theta between -pi/2 and pi/2, then 
+   Generates the parallel velocity to the photon propagation.
+
+   First generates a random number \theta between -pi/2 and pi/2, then 
    it generates u_parallel through u_parallel = a \tan\theta + x
    then this value of u_parallel is kept if another random number 
    between [0,1] is smaller than \exp^{-u_parallel^2}. 
-   At the end the value of u_parallel is multiplied by the sign of x.       
+   Finally, the value of u_parallel is multiplied by the sign of x.       
 */
+__device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, curandState *state, int *status) 
 {
     int finished = 0;
     float tmp0, tmp1, tmp2;        
@@ -55,15 +62,17 @@ __device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, cura
     }
 }
 
-
+/*
+  Geometrical test. It decides whether the photon is still inside the
+  propagation volume.
+*/
 __device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S)
-/*depending on the geometrical consideration of the problem at hand,
-  decides if the photon is still inside*/
 {
     int is_in;
     double radius;
     is_in = 1;
 
+    /*Infinite Slab*/
     if(S->NeufeldSlab){
 	if(fabs(pos_z)<S->Tau){
 	    is_in = 1;
@@ -72,6 +81,7 @@ __device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S
 	}
     }
 
+    /*Cube*/
     if(S->NeufeldCube){
 	if(fabs(pos_x)<S->Tau && 
 	   fabs(pos_y)<S->Tau &&
@@ -82,21 +92,25 @@ __device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S
 	}
     }
 
+    /*Sphere*/
     if(S->ExpandingSphere||S->RotatingSphere){
-	radius = pos_x*pos_x + pos_y*pos_y + pos_z*pos_z;
-	radius = sqrt(radius);
-	if(radius< S->Tau){
-	    is_in = 1;
-	}else{
-	    is_in = 0 ;
-	}
+      radius = pos_x*pos_x + pos_y*pos_y + pos_z*pos_z;
+      radius = sqrt(radius);
+      if(radius< S->Tau){
+	is_in = 1;
+      }else{
+	is_in = 0 ;
+      }
     }
     
     return is_in;
 }
 
 
-
+/*
+  This is CLARA's core.
+  This routine computes all the scatterings until the photon escapes.
+*/
 __global__ void scatterStep(float *x, float *p, int N, curandState *const rngStates, setup *S)
 {
 
@@ -107,7 +121,7 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
 
   int status;
 
-  // Initialise the RNG
+  /*Initializes the random number generator*/
   curandState localState = rngStates[id];
   float f=0.0;
   float px=0.0;
@@ -122,8 +136,7 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
       getPoint(&px, &localState);
       getPoint(&py, &localState);
       getPoint(&pz, &localState);
-      
-      
+            
       p[idx] = p[idx] + px;
       p[idy] = p[idy] + py;
       p[idz] = p[idz] + pz;
@@ -134,6 +147,18 @@ __global__ void scatterStep(float *x, float *p, int N, curandState *const rngSta
   
 }
 
+/*
+  This is the main driver for CLARA.
+  Initializes the memory on the device for:
+  - Photons positions.
+  - Photons direction of propagation.
+  - Photons frequency.
+  - Global setup (densities, velocities, temperatures)
+
+  This is also the place where the main GPU characteristics have to be setup:
+  - Number of blocks
+  - Number of threads
+*/
 extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   float *x_aux;
   float *p_aux;
@@ -165,6 +190,10 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
   cudaResult = cudaGetDeviceProperties(&deviceProperties, m_device);
   fprintf(stdout, "Device Properties:\n Multiproc count %d\n", deviceProperties.multiProcessorCount );
 
+  //allocate and copy the global setup structure 
+  cudaMalloc((void**) &S, sizeof(setup));
+  cudaMemcpy(S, &All, sizeof(setup), cudaMemcpyHostToDevice);
+
   //allocate auxiliary variables  
   n_aux = max_id - min_id;
   if(!(x_aux = (float *)malloc(n_aux * sizeof(float)))){
@@ -185,8 +214,6 @@ extern "C" void scatter_bunch(float *x, float *p, int min_id, int max_id){
     }
   }
 
-  cudaMalloc ( (void**) &S, sizeof(setup));
-  cudaMemcpy(S, &All, sizeof(setup), cudaMemcpyHostToDevice);
 
   // allocate memory on device
   cudaMalloc((void **) &x_aux_d, n_aux * sizeof(float));

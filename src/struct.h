@@ -1,12 +1,23 @@
 #ifndef STRUCT_H
 #define STRUCT_H
 
+#define FLOAT double
+
 /*Internal flag/constant difinitions*/
-#define EPSILON_DOUBLE 1E-6
-#define MAX_VEL_ITER 1000000
+#define EPSILON_DOUBLE     1E-6
+#define MAX_VEL_ITER       1000000
+#define MAX_ITER           1000000000
+#define MAX_FILENAME_SIZE  1024
+
+/*possible error codes for the program*/
 #define EXCEEDED_ITERATIONS 10
 #define NULL_NORM           20
-#define MAX_FILENAME_SIZE 1024
+
+/*posible status codes for a photon*/
+#define ABSORBED             -1
+#define OUT_OF_BOX            0
+#define ACTIVE                1
+#define SATURATED_ITERATIONS -2
 
 /*some units in (cgs) sistem*/
 #define PI 3.14159265358979323846264338327

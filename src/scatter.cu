@@ -20,18 +20,18 @@ __global__ void initRNG(curandState *const rngStates,
 }
 
 /*
-  float random number generator
+  FLOAT random number generator
 */
-__device__ void getPoint(float *x, curandState *state)
+__device__ void getPoint(FLOAT *x, curandState *state)
 {
   *x = curand_normal_double(state);
 }
 
 
-__device__ void RND_spherical(float *vec, curandState *state)
+__device__ void RND_spherical(FLOAT *vec, curandState *state)
 /*vector randomly distributed over the sphere*/
 {
-    float theta, phi;
+    FLOAT theta, phi;
     theta = acos(2.0*(curand_uniform(state) -0.5));
     phi = 2.0*PI*curand_uniform(state);
     vec[0] = sin(theta)*cos(phi);
@@ -39,7 +39,7 @@ __device__ void RND_spherical(float *vec, curandState *state)
     vec[2] = cos(theta);
 }
 
-__device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, curandState *state, int *status) 
+__device__ void RND_lyman_parallel_vel(FLOAT *u_parallel, FLOAT x, FLOAT a, curandState *state, int *status) 
 /* 
    Generates the parallel velocity to the photon propagation.
    First generates a random number \theta between -pi/2 and pi/2, then 
@@ -50,7 +50,7 @@ __device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, cura
 */
 {
     int finished = 0;
-    float tmp0, tmp1, tmp2;        
+    FLOAT tmp0, tmp1, tmp2;        
     int counter = 0;
     
     while (finished == 0) {
@@ -72,14 +72,14 @@ __device__ void RND_lyman_parallel_vel(float *u_parallel, float x, float a, cura
     }
 }
 
-__device__ void RND_lyman_perp_vel(float *u_1, float *u_2, curandState *state)
+__device__ void RND_lyman_perp_vel(FLOAT *u_1, FLOAT *u_2, curandState *state)
 /* 
    Genereates magnitudes for the atom's perpendicular velocities using
    Box&Muller method. 
 */
 {
-  float tmp1, tmp2;
-  float vel_1, vel_2;
+  FLOAT tmp1, tmp2;
+  FLOAT vel_1, vel_2;
   tmp1 = curand_uniform(state);
   tmp2 = curand_uniform(state);
   vel_1 = sqrt(-log(tmp1))*cos(2.0*PI*tmp2);
@@ -90,10 +90,10 @@ __device__ void RND_lyman_perp_vel(float *u_1, float *u_2, curandState *state)
 }
 
 
-__device__ void RND_pair(float *r_1, float *r_2, curandState *state){
+__device__ void RND_pair(FLOAT *r_1, FLOAT *r_2, curandState *state){
   /*generates a pair of random numbers with norm less than one*/
   int finished;
-  float rand_1, rand_2;
+  FLOAT rand_1, rand_2;
 
   finished = 0;
   while (finished == 0) {
@@ -108,19 +108,19 @@ __device__ void RND_pair(float *r_1, float *r_2, curandState *state){
 }
 
 
-__device__ void RND_lyman_atom(float *Vel, float *DirPhoton, float *DirOutPhoton, float x, float a ,curandState *state, int *status)
+__device__ void RND_lyman_atom(FLOAT *Vel, FLOAT *DirPhoton, FLOAT *DirOutPhoton, FLOAT x, FLOAT a ,curandState *state, int *status)
 /* Obtains a random velocity for the hydrogen atom
    the velocity is in units of the termal velocity.*/
 {
     int i;
-    float LocalVel[3];
-    float x_axis[3];
-    float y_axis[3];
-    float z_axis[3];
-    float rand_axis[3];
-    float R_1, R_2, R_3, T, mu, iso;
-    float  x_corewing;
-    float exponent;
+    FLOAT LocalVel[3];
+    FLOAT x_axis[3];
+    FLOAT y_axis[3];
+    FLOAT z_axis[3];
+    FLOAT rand_axis[3];
+    FLOAT R_1, R_2, R_3, T, mu, iso;
+    FLOAT  x_corewing;
+    FLOAT exponent;
 
     /*get first the parallel velocity*/
     RND_lyman_parallel_vel(&(LocalVel[2]), x, a, state, status);
@@ -200,7 +200,7 @@ __device__ void RND_lyman_atom(float *Vel, float *DirPhoton, float *DirOutPhoton
 }
 
 
-__device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S)
+__device__ int PropagateIsInside(FLOAT pos_x, FLOAT pos_y, FLOAT pos_z, setup *S)
 /*
   Geometrical test. It decides whether the photon is still inside the
   propagation volume.
@@ -249,20 +249,25 @@ __device__ int PropagateIsInside(float pos_x, float pos_y, float pos_z, setup *S
   This is CLARA's core.
   This routine computes all the scatterings until the photon escapes.
 */
-__global__ void scatterStep(float *x, float *p, float *k, int N, curandState *const rngStates, setup *S)
+__global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *const rngStates, setup *S)
 {
   /*physical variables that define the medium*/
-  float HIInteractionProb, dust_sigma;
-  float nu_doppler, v_thermal, temperature;
+  FLOAT HIInteractionProb, dust_sigma;
+  FLOAT nu_doppler, v_thermal, temperature;
 
   /*random variables that will define dust or hydrogen interaction*/
-  float rand_interaction, rand_absorption;
+  FLOAT rand_interaction, rand_absorption;
   
   /*physical variables that defie the photon state*/
-  float v_parallel, g_recoil, lya_sigma, tau, x_in, x_out, r, a_in;
-  float k_out_photon[3];
-  float u_atom[3];
-
+  FLOAT v_parallel, g_recoil, lya_sigma, tau, x_in, x_out, r, a_in;
+  FLOAT k_out_photon[3];
+  FLOAT u_atom[3];
+  FLOAT pos[3];
+  FLOAT dir[3];
+  FLOAT x_photon;
+  int photon_status;
+  int program_status;
+  int n_iter=0;
   /*memory thread on the GPU*/
   int id = blockIdx.x*blockDim.x + threadIdx.x;
   int idx = blockIdx.x*blockDim.x + (threadIdx.x*3  + 0); 
@@ -270,33 +275,62 @@ __global__ void scatterStep(float *x, float *p, float *k, int N, curandState *co
   int idz = blockIdx.x*blockDim.x + (threadIdx.x*3  + 2);
 
 
-  float f=0.0;
-  float px=0.0;
-  float py=0.0;
-  float pz=0.0;
-  float norm;
-  int status;
+  FLOAT f=0.0;
+  FLOAT px=0.0;
+  FLOAT py=0.0;
+  FLOAT pz=0.0;
+  FLOAT norm;
 
 
   /*Initializes the random number generator*/
   curandState localState = rngStates[id];
 
+  /*Make the initialization for the photon*/
+  pos[0] = p[idx];
+  pos[1] = p[idy];
+  pos[2] = p[idz];
+  dir[0] = k[idx];
+  dir[1] = k[idy];
+  dir[2] = k[idz];
+  x_photon = x[id];
+  
+  photon_status = ACTIVE; /*this must be changed and properly initialized*/
+  
   if (id < N){    
-    while(PropagateIsInside(p[idx], p[idy], p[idz], S)){
-      RND_lyman_parallel_vel(&f, x[id], 0.01, &localState, &status); 
-
+    while(PropagateIsInside(pos[0], pos[1], pos[2], S) && (photon_status==ACTIVE) && (n_iter<MAX_ITER)){
+      RND_lyman_parallel_vel(&f, x_photon, 0.01, &localState, &program_status); 
+      
+      /*propagate routine*/
       getPoint(&px, &localState);
       getPoint(&py, &localState);
-      getPoint(&pz, &localState);
-            
-      p[idx] = p[idx] + px;
-      p[idy] = p[idy] + py;
-      p[idz] = p[idz] + pz;
-      x[id] = x[id] + f/1E5;          
-      __syncthreads();
+      getPoint(&pz, &localState);      
+      pos[0] = pos[0] + px;
+      pos[1] = pos[1] + py;
+      pos[2] = pos[2] + pz;
+      x_photon = x_photon + f/1E5;          
+      n_iter++;
     }
+    __syncthreads();
   }
-  
+
+  /*update the photon status*/
+  if(photon_status==ACTIVE){
+    photon_status = OUT_OF_BOX;
+  }
+  if(n_iter>= MAX_ITER){
+    photon_status = SATURATED_ITERATIONS;
+  }
+
+
+  /*update the values*/
+  p[idx] = pos[0];
+  p[idy] = pos[1];
+  p[idz] = pos[2];
+  k[idx] = dir[0];
+  k[idy] = dir[1];
+  k[idz] = dir[2];
+  x[id] = x_photon;  
+  __syncthreads();
 }
 
 /*
@@ -311,13 +345,13 @@ __global__ void scatterStep(float *x, float *p, float *k, int N, curandState *co
   - Number of blocks
   - Number of threads
 */
-extern "C" void scatter_bunch(float *x, float *p, float *k, int min_id, int max_id){
-  float *x_aux;
-  float *p_aux;
-  float *k_aux;
-  float *x_aux_d;
-  float *p_aux_d;
-  float *k_aux_d;
+extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_id){
+  FLOAT *x_aux;
+  FLOAT *p_aux;
+  FLOAT *k_aux;
+  FLOAT *x_aux_d;
+  FLOAT *p_aux_d;
+  FLOAT *k_aux_d;
 
   int n_aux;
   int blockSize;
@@ -351,17 +385,17 @@ extern "C" void scatter_bunch(float *x, float *p, float *k, int min_id, int max_
 
   //allocate auxiliary variables  
   n_aux = max_id - min_id;
-  if(!(x_aux = (float *)malloc(n_aux * sizeof(float)))){
+  if(!(x_aux = (FLOAT *)malloc(n_aux * sizeof(FLOAT)))){
     fprintf(stderr, "Problem allocating the auxiliary array\n");
     exit(1);
   }
 
-  if(!(p_aux = (float *)malloc(3 * n_aux * sizeof(float)))){
+  if(!(p_aux = (FLOAT *)malloc(3 * n_aux * sizeof(FLOAT)))){
     fprintf(stderr, "Problem allocating the auxiliary array\n");
     exit(1);
   }
 
-  if(!(k_aux = (float *)malloc(3 * n_aux * sizeof(float)))){
+  if(!(k_aux = (FLOAT *)malloc(3 * n_aux * sizeof(FLOAT)))){
     fprintf(stderr, "Problem allocating the auxiliary array\n");
     exit(1);
   }
@@ -377,14 +411,14 @@ extern "C" void scatter_bunch(float *x, float *p, float *k, int min_id, int max_
 
 
   // allocate memory on device
-  cudaMalloc((void **) &x_aux_d, n_aux * sizeof(float));
-  cudaMalloc((void **) &p_aux_d, 3 * n_aux * sizeof(float));
-  cudaMalloc((void **) &k_aux_d, 3 * n_aux * sizeof(float));
+  cudaMalloc((void **) &x_aux_d, n_aux * sizeof(FLOAT));
+  cudaMalloc((void **) &p_aux_d, 3 * n_aux * sizeof(FLOAT));
+  cudaMalloc((void **) &k_aux_d, 3 * n_aux * sizeof(FLOAT));
 
   // copy data from host to device
-  cudaMemcpy(x_aux_d, x_aux, sizeof(float) * n_aux, cudaMemcpyHostToDevice);
-  cudaMemcpy(p_aux_d, p_aux, 3 * sizeof(float) * n_aux, cudaMemcpyHostToDevice);
-  cudaMemcpy(k_aux_d, k_aux, 3 * sizeof(float) * n_aux, cudaMemcpyHostToDevice);
+  cudaMemcpy(x_aux_d, x_aux, sizeof(FLOAT) * n_aux, cudaMemcpyHostToDevice);
+  cudaMemcpy(p_aux_d, p_aux, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyHostToDevice);
+  cudaMemcpy(k_aux_d, k_aux, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyHostToDevice);
 
   blockSize = 512; // This is the number of threads inside a block
   nBlocks = (3*n_aux)/blockSize + (n_aux%blockSize == 0?0:1); // This is the number of blocks
@@ -402,9 +436,9 @@ extern "C" void scatter_bunch(float *x, float *p, float *k, int min_id, int max_
   scatterStep <<< nBlocks, blockSize >>> (x_aux_d, p_aux_d, k_aux_d, n_aux, d_rngStates, S);
 
   // copy data from device to host
-  cudaMemcpy(x_aux, x_aux_d, sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
-  cudaMemcpy(p_aux, p_aux_d, 3 * sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
-  cudaMemcpy(k_aux, k_aux_d, 3 * sizeof(float) * n_aux, cudaMemcpyDeviceToHost);
+  cudaMemcpy(x_aux, x_aux_d, sizeof(FLOAT) * n_aux, cudaMemcpyDeviceToHost);
+  cudaMemcpy(p_aux, p_aux_d, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyDeviceToHost);
+  cudaMemcpy(k_aux, k_aux_d, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyDeviceToHost);
 
   printf("%f\n", All.Tau);
 

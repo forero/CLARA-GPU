@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "struct.h"
+#include "io.h"
 
-void DumpPhotonList(float *x, float *p, float *k, int n_points, char *filename){
+void DumpPhotonList(FLOAT *x, FLOAT *p, FLOAT *k, int n_points, char *filename){
   FILE *out;
   int i;
 

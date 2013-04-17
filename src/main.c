@@ -1,17 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "struct.h"
 #include "init.h"
 #include "scatter.h"
 #include "io.h"
 #include "transport.h"
 #include "parse.h"
-#include "struct.h"
+
 
 int main(int argc, char **argv){
-  float *x;
-  float *p;
-  float *k;
+  FLOAT *x;
+  FLOAT *p;
+  FLOAT *k;
   int n_points;
     
   /*parse the parameter setup*/

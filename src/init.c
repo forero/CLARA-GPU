@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "init.h"
 #include "struct.h"
+#include "init.h"
 
-float * InitCreationFrequency(int n_points){
-  float *x;
-  if(!(x=malloc(n_points * sizeof(float)))){
+FLOAT * InitCreationFrequency(int n_points){
+  FLOAT *x;
+  if(!(x=malloc(n_points * sizeof(FLOAT)))){
     fprintf(stderr, "Problem in the allocation of property x\n");
     exit(1);
   }
@@ -14,18 +14,18 @@ float * InitCreationFrequency(int n_points){
 }
 
 
-float * InitCreationPosition(int n_points){
-  float *p;
-  if(!(p=malloc(3 * n_points * sizeof(float)))){
+FLOAT * InitCreationPosition(int n_points){
+  FLOAT *p;
+  if(!(p=malloc(3 * n_points * sizeof(FLOAT)))){
     fprintf(stderr, "Problem in the allocation of property x\n");
     exit(1);
   }
   return p;
 }
 
-float * InitCreationDirection(int n_points){
-  float *k;
-  if(!(k=malloc(3 * n_points * sizeof(float)))){
+FLOAT * InitCreationDirection(int n_points){
+  FLOAT *k;
+  if(!(k=malloc(3 * n_points * sizeof(FLOAT)))){
     fprintf(stderr, "Problem in the allocation of property x\n");
     exit(1);
   }
@@ -33,14 +33,14 @@ float * InitCreationDirection(int n_points){
 }
 
 
-void InitFrequency(float *x, int n_points){
+void InitFrequency(FLOAT *x, int n_points){
   int i;
   for(i=0;i<n_points;i++){
     x[i] = 0.0;
   }
 }
 
-void InitPosition(float *p, int n_points){
+void InitPosition(FLOAT *p, int n_points){
   int i;
   for(i=0;i<n_points;i++){
     p[3*i + 0] = 0.0;
@@ -50,9 +50,9 @@ void InitPosition(float *p, int n_points){
 }
 
 
-void InitDirection(float *k, int n_points){
+void InitDirection(FLOAT *k, int n_points){
   int i;
-  float theta, phi;
+  FLOAT theta, phi;
   /*random directions over the sphere*/
   for(i=0;i<n_points;i++){
     theta = acos((drand48()-0.5)*2.0);
@@ -63,9 +63,9 @@ void InitDirection(float *k, int n_points){
   }  
 }
 
-void InitCheckDirection(float *k, int n_points){
+void InitCheckDirection(FLOAT *k, int n_points){
   int i;
-  float norm2;
+  FLOAT norm2;
   for(i=0;i<n_points;i++){
       norm2 = (k[3*i + 0]*k[3*i + 0])  +
 	(k[3*i + 1] * k[3*i + 1]) +

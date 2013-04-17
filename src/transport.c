@@ -5,7 +5,7 @@
 #include "scatter.h"
 
 
-void TransportPhotons(float *x, float *p, float *k, int n_photons){
+void TransportPhotons(FLOAT *x, FLOAT *p, FLOAT *k, int n_photons){
   int pack_size, last_pack_size;  
   int n_packs;
   int i;

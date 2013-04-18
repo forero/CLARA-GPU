@@ -3,4 +3,7 @@
 *usedvalues
 *.in
 *.out
+*.aux
+*.log
+*.spl
 clara

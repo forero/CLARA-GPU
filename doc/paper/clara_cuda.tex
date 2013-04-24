@@ -22,7 +22,42 @@
 %% $URL: http://lenova.river-valley.com/svn/elsbst/trunk/elsarticle-template-2-harv.tex $
 %%
 \documentclass[preprint,authoryear,12pt]{elsarticle}
-
+\newcommand{\kms}{\,km~s$^{-1}$}
+\def\squig{\sim\!\!}
+\newcommand{\apj}{ApJ}
+\newcommand{\apjs}{ApJS}
+\newcommand{\apjl}{ApJL}
+\newcommand{\aj}{AJ}
+\newcommand{\mnras}{MNRAS}
+\newcommand{\mnrassub}{MNRAS accepted}
+\newcommand{\aap}{A\&A}
+\newcommand{\aaps}{A\&AS}
+\newcommand{\araa}{ARA\&A}
+\newcommand{\nat}{Nature}
+\newcommand{\physrep}{PhR}
+\newcommand{\pasp}{PASP}
+\newcommand{\pasj}{PASJ} 
+\newcommand{\LCDM}{$\Lambda$CDM~}
+\newcommand{\beq}{\begin{eqnarray}}
+\newcommand{\eeq}{\end{eqnarray}}
+\newcommand{\zz}{$z\sim 3$}
+\newcommand{\avg}[1]{\langle{#1}\rangle}
+\newcommand{\ly}{{\ifmmode{{\rm Ly}\alpha}\else{Ly$\alpha$}\fi}}
+\newcommand{\hMpc}{{\ifmmode{h^{-1}{\rm Mpc}}\else{$h^{-1}$Mpc }\fi}}
+\newcommand{\hGpc}{{\ifmmode{h^{-1}{\rm Gpc}}\else{$h^{-1}$Gpc }\fi}}
+\newcommand{\hmpc}{{\ifmmode{h^{-1}{\rm Mpc}}\else{$h^{-1}$Mpc }\fi}}
+\newcommand{\hkpc}{{\ifmmode{h^{-1}{\rm kpc}}\else{$h^{-1}$kpc }\fi}}
+\newcommand{\hMsun}{{\ifmmode{h^{-1}{\rm {M_{\odot}}}}\else{$h^{-1}{\rm{M_{\odot}}}$}\fi}}
+\newcommand{\hmsun}{{\ifmmode{h^{-1}{\rm {M_{\odot}}}}\else{$h^{-1}{\rm{M_{\odot}}}$}\fi}}
+\newcommand{\Msun}{{\ifmmode{{\rm {M_{\odot}}}}\else{${\rm{M_{\odot}}}$}\fi}}
+\newcommand{\msun}{{\ifmmode{{\rm {M_{\odot}}}}\else{${\rm{M_{\odot}}}$}\fi}}
+\newcommand{\lya}{{Lyman$\alpha$~}}
+\newcommand{\clara}{{\texttt{CLARA}}~}
+\newcommand{\rand}{{\ifmmode{{\mathcal{R}}}\else{${\mathcal{R}}$ }\fi}}
+\newcommand{\Lsun}{\mbox{\,$L_{\odot}$}}
+\newcommand{\like}{\mathscr{L}}
+\newcommand{\bftheta}{\mathbf{\Theta}}
+\newcommand{\degree}{\ensuremath{^\circ}}
 %% Use the option review to obtain double line spacing
 %% \documentclass[authoryear,preprint,review,12pt]{elsarticle}
 
@@ -110,9 +145,9 @@
 %% \address[label1]{<address>}
 %% \address[label2]{<address>}
 
-\author{}
+\author{Jaime E. Forero-Romero}
 
-\address{}
+\address{Departamento de F\'{i}sica, Universidad de los Andes, Cra. 1 No. 18A-10, Edificio Ip, Bogot\'a, Colombia}
 
 \begin{abstract}
 %% Text of abstract
@@ -135,9 +170,23 @@
 \section{Introduction}
 \label{sec:introduction}
 
+... Galaxies withs strong Lyman-alpha emission are a valuable probes
+of the distant Universe.
 
-... The development process of the code and this paper are available as a github repository 
-in the following URL.
+... The interaction of Lyman-alpha photons with the interestellar
+medium requieres the use of computational techniques able to handle
+such complexity.
+
+... One of the most widely used family of codes is able to deal with
+simplyfied geometrical configurations. 
+
+... This papers is center in presenting the first GPU powered code for
+the radiative transfer of the Lyman-alpha line. It is based on the
+capabilities already demonstrated in \cite{CLARA}.
+
+... The development process of the code and this paper are available
+as a github repository in the following URL
+\verb"https://github.com/forero/CLARA-GPU". 
 
 \section{Fundamental Algorithm description}
 \label{sec:algorithm}
@@ -246,8 +295,8 @@ CLARA as reported here CLARAREF.
 
 %% References with bibTeX database:
 
-\bibliographystyle{model2-names}
-\bibliography{<your-bib-database>}
+
+\bibliography{references}
 
 %% Authors are advised to submit their bibtex database files. They are
 %% requested to list a bibtex style file in the manuscript if they do

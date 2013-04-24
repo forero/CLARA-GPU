@@ -3,6 +3,9 @@
 #include <math.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
+
+
+
 #include "struct.h"
 /*this makes the compiler happy*/
 #include "vector.cu"
@@ -256,7 +259,6 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *co
   
   if (id < N){    
     while(PropagateIsInside(pos[0], pos[1], pos[2], S) && (photon_status==ACTIVE) && (n_iter<MAX_ITER)){
-      //      RND_lyman_parallel_vel(&f, x_photon, 0.01, &localState, &program_status); 
 
       /* get the temperature at this point*/
       PropagateGetTemperature(&temperature, &(pos[0]), S);
@@ -280,7 +282,7 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *co
                   
       /*--------------------------------------------------------------------------*/
       /*Change the frequency and the Propagation direction, find the displacement*/	
-      //      photon_status = PropagateStep(&x_photon, dir, &r_travel, a, n_HI, &localState, S);	    	
+      photon_status = PropagateStep(&x_photon, &(dir[0]), &r_travel, &a, &localState, S);	    	
       /*--------------------------------------------------------------------------*/
             
       /*Change the new direction to the lab frame value*/
@@ -289,25 +291,12 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *co
       /*Change the frequency comoving to the lab frame value*/
       PropagateLorentzFreqChange(&x_photon, dir, BulkVel, v_thermal, 1); 
       
-      
       /*Update the position*/
       for(i=0;i<3;i++){
 	pos[i] += r_travel*dir[i];	    
       }
       
       n_iter++;
-      
-      /*propagate routine*/
-      /*
-	getPoint(&px, &localState);
-	getPoint(&py, &localState);
-	getPoint(&pz, &localState);      
-	pos[0] = pos[0] + px;
-	pos[1] = pos[1] + py;
-	pos[2] = pos[2] + pz;
-	x_photon = x_photon + f/1E5;          
-	n_iter++;
-      */
     }
     __syncthreads();
   }
@@ -362,8 +351,16 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_
   unsigned int m_device;
   unsigned int m_threadBlockSize;  
   struct cudaDeviceProp     deviceProperties;
-  struct cudaFuncAttributes funcAttributes;
   cudaError_t cudaResult = cudaSuccess;
+
+  cudaSetDevice(0);
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, 0);
+
+ char msg[256];
+        sprintf(msg, "  Total amount of global memory:                 %.0f MBytes (%llu bytes)\n",
+                (float)deviceProp.totalGlobalMem/1048576.0f, (unsigned long long) deviceProp.totalGlobalMem);
+        printf("%s", msg);
 
   cudaResult = cudaGetLastError();
   if (cudaResult!=cudaSuccess){

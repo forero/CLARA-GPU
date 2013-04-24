@@ -63,7 +63,8 @@ typedef struct global_setup
   int ExpandingSphere;
   int RotatingSphere;
   int HomogeneousInit; /*specifies if the photons are to be homogeneously distributed over the volume*/
-    
+
+
   /*define the tests*/
   int TestParallelVel;
   int TestParallelVelFast;

@@ -130,10 +130,6 @@ void ReadParameters(char *fname)
   id[nt++] = DOUBLE;
 
   /*Parameters for the dust model*/
-  strcpy(tag[nt], "GrainSize");
-  addr[nt] = &All.GrainSize;
-  id[nt++] = DOUBLE;
-
   strcpy(tag[nt], "TauDust");
   addr[nt] = &All.TauDust;
   id[nt++] = DOUBLE;

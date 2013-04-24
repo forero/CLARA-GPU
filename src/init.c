@@ -67,11 +67,13 @@ void InitCheckDirection(FLOAT *k, int n_points){
   int i;
   FLOAT norm2;
   for(i=0;i<n_points;i++){
-      norm2 = (k[3*i + 0]*k[3*i + 0])  +
+      norm2 = 
+	(k[3*i + 0]*k[3*i + 0])  +
 	(k[3*i + 1] * k[3*i + 1]) +
 	(k[3*i + 2] * k[3*i + 2]);
-      if(fabs(norm2-1.0)>EPSILON_DOUBLE){
+      if(fabs(norm2-1.0)>EPSILON_DOUBLE){	
 	fprintf(stderr, "Directions are not normalized to unity. EXIT.\n");
+	fprintf(stderr, "photon id %d. %f %f %f\n", i, k[3*i + 0],k[3*i + 1],k[3*i + 2]);
 	exit(1);
       }
   }  

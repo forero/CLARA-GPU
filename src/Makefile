@@ -2,7 +2,7 @@
 INC	:= -I$(CUDA_HOME)/include -I.
 LIB	:= -L$(CUDA_HOME)/lib64 -lcudart -lm 
 
-NVCCFLAGS	:= -DCUDA_DEVICE=0 --ptxas-options=-v --use_fast_math
+NVCCFLAGS	:= -DCUDA_DEVICE=0 --ptxas-options=-v --use_fast_math -m64
 EXEC = clara
 
 

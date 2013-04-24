@@ -13,11 +13,12 @@ OutputBinary           0
 RandomSeed	       1981
 
 % define the problem/test to solve
-NeufeldSlab          1
+NeufeldSlab          0
 NeufeldCube          0
-ExpandingSphere      0
+ExpandingSphere      1
 RotatingSphere       0
 HomogeneousInit      0
+
 
 % define the tests to solve
 TestParallelVel      0
@@ -27,18 +28,17 @@ TestRND              0
 TestPerpVel          0
 
 % main parameters controling the algorithm
-NPackages            5000
+NPackages            4000 % 5000
 InputFrequency	     0.0
 
 % define some physical parameters of the problem to solve
 Temperature          10000.0 % in  Kelvin
-Tau 		     15.0
-Vmax		     50.0 % in km/s
+Tau 		     1000.0
+Vmax		     0.0 % in km/s
 
 
 % parameters of the dust model
-GrainSize             1.0e-6
-TauDust               1.0
+TauDust               0.0
 DustAbsorptionProb    0.5
 
 % parameters for the tests

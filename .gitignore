@@ -3,6 +3,7 @@
 *usedvalues
 *.in
 *.out
+*.bbl
 *.aux
 *.log
 *.spl

@@ -1,0 +1,8 @@
+- Include simple tests.
+
+- Define relevant GPU input parameters.
+- Define benchmarks.
+
+- Write single CPU version.
+- Write MPI version.
+

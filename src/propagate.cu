@@ -215,6 +215,7 @@ __device__ int PropagateStep(FLOAT *x, FLOAT *Dir, FLOAT *tau_travel, FLOAT *a,
     x_out = x_in - point_product(u_atom, k_in_photon) +
       point_product(u_atom, k_out_photon) +	  
       g_recoil * (point_product(k_in_photon, k_out_photon) - 1.0);
+
   }else{
     x_out = x_in; 
   }

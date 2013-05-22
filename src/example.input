@@ -28,17 +28,17 @@ TestRND              0
 TestPerpVel          0
 
 % main parameters controling the algorithm
-NPackages            4000 % 5000
+NPackages            512 % 5000
 InputFrequency	     0.0
 
 % define some physical parameters of the problem to solve
 Temperature          10000.0 % in  Kelvin
-Tau 		     1000.0
+Tau 		     100.0
 Vmax		     0.0 % in km/s
 
 
 % parameters of the dust model
-TauDust               0.0
+TauDust               0.001
 DustAbsorptionProb    0.5
 
 % parameters for the tests

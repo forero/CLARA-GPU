@@ -3,7 +3,7 @@
 #include "struct.h"
 #include "io.h"
 
-void DumpPhotonList(FLOAT *x, FLOAT *p, FLOAT *k, int n_points, char *filename){
+void DumpPhotonList(FLOAT *x, FLOAT *p, FLOAT *k, int *n_scatt, int *status_id, int n_points, char *filename){
   FILE *out;
   int i;
 
@@ -13,9 +13,10 @@ void DumpPhotonList(FLOAT *x, FLOAT *p, FLOAT *k, int n_points, char *filename){
   }
   
   for(i=0;i<n_points;i++){
-    fprintf(out, "%f %f %f %f %f %f %f\n", x[i], 
+    fprintf(out, "%f %f %f %f %f %f %f %d %d\n", x[i], 
 	    p[3*i + 0], p[3*i + 1], p[3*i +2], 
-	    k[3*i + 0], k[3*i + 1], k[3*i +2]);	    
+	    k[3*i + 0], k[3*i + 1], k[3*i +2], 
+	    n_scatt[i], status_id[i]);
   }
   fclose(out);
 }

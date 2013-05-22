@@ -5,7 +5,7 @@
 #include "scatter.h"
 
 
-void TransportPhotons(FLOAT *x, FLOAT *p, FLOAT *k, int n_photons){
+void TransportPhotons(FLOAT *x, FLOAT *p, FLOAT *k, int *n_scatter, int *status_ID, int n_photons){
   int pack_size, last_pack_size;  
   int n_packs;
   int i;
@@ -20,7 +20,7 @@ void TransportPhotons(FLOAT *x, FLOAT *p, FLOAT *k, int n_photons){
   fprintf(stdout, "one last pack of size %d\n", last_pack_size);
   
   for(i=0;i<n_packs;i++){
-    scatter_bunch(x, p, k, i*pack_size, (i+1)*pack_size);
+    scatter_bunch(x, p, k, n_scatter, status_ID, i*pack_size, (i+1)*pack_size);
   }  
-  scatter_bunch(x, p, k, i*pack_size, i*pack_size + last_pack_size);  
+  scatter_bunch(x, p, k, n_scatter, status_ID, i*pack_size, i*pack_size + last_pack_size);  
 }

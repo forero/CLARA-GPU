@@ -212,7 +212,7 @@ __device__ void RND_lyman_atom(FLOAT *Vel, FLOAT *DirPhoton, FLOAT *DirOutPhoton
   This is CLARA's core.
   This routine computes all the scatterings until the photon escapes.
 */
-__global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *const rngStates, setup *S)
+__global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int * n_scatter, int *status_ID, int N, curandState *const rngStates, setup *S)
 {
   /*physical variables that define the photon state*/
   FLOAT pos[3];
@@ -254,8 +254,7 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *co
   dir[1] = k[idy];
   dir[2] = k[idz];
   x_photon = x[id];
-  
-  photon_status = ACTIVE; /*this must be changed and properly initialized*/
+  photon_status = status_ID[id]; 
   
   if (id < N){    
     while(PropagateIsInside(pos[0], pos[1], pos[2], S) && (photon_status==ACTIVE) && (n_iter<MAX_ITER)){
@@ -318,6 +317,9 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *co
   k[idy] = dir[1];
   k[idz] = dir[2];
   x[id] = x_photon;  
+  status_ID[id] = photon_status;
+  n_scatter[id] = n_iter;
+
   __syncthreads();
 }
 
@@ -333,13 +335,17 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int N, curandState *co
   - Number of blocks
   - Number of threads
 */
-extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_id){
+extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int *n_scatter, int *status_ID, int min_id, int max_id){
   FLOAT *x_aux;
   FLOAT *p_aux;
   FLOAT *k_aux;
+  int *n_scatter_aux;
+  int *status_ID_aux;
   FLOAT *x_aux_d;
   FLOAT *p_aux_d;
   FLOAT *k_aux_d;
+  int *n_scatter_aux_d;
+  int *status_ID_aux_d;
 
   int n_aux;
   int blockSize;
@@ -396,6 +402,16 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_
     exit(1);
   }
 
+  if(!(n_scatter_aux = (int *)malloc(n_aux * sizeof(int)))){
+    fprintf(stderr, "Problem allocating the auxiliary array\n");
+    exit(1);
+  }
+
+  if(!(status_ID_aux = (int *)malloc(n_aux * sizeof(int)))){
+    fprintf(stderr, "Problem allocating the auxiliary array\n");
+    exit(1);
+  }
+
   //fill the auxiliary variables
   for(i=0;i<n_aux;i++){
     x_aux[i] = x[min_id+i];
@@ -403,6 +419,8 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_
       p_aux[3*i + l] = p[3*(min_id+i)+l];
       k_aux[3*i + l] = k[3*(min_id+i)+l];
     }
+    n_scatter_aux[i] = n_scatter[min_id + i];
+    status_ID_aux[i] = status_ID[min_id + i];
   }
 
 
@@ -410,11 +428,17 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_
   cudaMalloc((void **) &x_aux_d, n_aux * sizeof(FLOAT));
   cudaMalloc((void **) &p_aux_d, 3 * n_aux * sizeof(FLOAT));
   cudaMalloc((void **) &k_aux_d, 3 * n_aux * sizeof(FLOAT));
+  cudaMalloc((void **) &n_scatter_aux_d, n_aux * sizeof(int));
+  cudaMalloc((void **) &status_ID_aux_d, n_aux * sizeof(int));
 
   // copy data from host to device
   cudaMemcpy(x_aux_d, x_aux, sizeof(FLOAT) * n_aux, cudaMemcpyHostToDevice);
   cudaMemcpy(p_aux_d, p_aux, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyHostToDevice);
   cudaMemcpy(k_aux_d, k_aux, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyHostToDevice);
+  cudaMemcpy(n_scatter_aux_d, n_scatter_aux, sizeof(int) * n_aux, cudaMemcpyHostToDevice);
+  cudaMemcpy(status_ID_aux_d, status_ID_aux, sizeof(int) * n_aux, cudaMemcpyHostToDevice);
+
+
 
   blockSize = 512; // This is the number of threads inside a block
   nBlocks = (3*n_aux)/blockSize + (n_aux%blockSize == 0?0:1); // This is the number of blocks
@@ -429,12 +453,14 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_
   initRNG<<<nBlocks, blockSize>>>(d_rngStates, m_seed);
 
   // Make the random step until all the photons escape
-  scatterStep <<< nBlocks, blockSize >>> (x_aux_d, p_aux_d, k_aux_d, n_aux, d_rngStates, S);
+  scatterStep <<< nBlocks, blockSize >>> (x_aux_d, p_aux_d, k_aux_d, n_scatter_aux_d, status_ID_aux_d, n_aux, d_rngStates, S);
 
   // copy data from device to host
   cudaMemcpy(x_aux, x_aux_d, sizeof(FLOAT) * n_aux, cudaMemcpyDeviceToHost);
   cudaMemcpy(p_aux, p_aux_d, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyDeviceToHost);
   cudaMemcpy(k_aux, k_aux_d, 3 * sizeof(FLOAT) * n_aux, cudaMemcpyDeviceToHost);
+  cudaMemcpy(n_scatter_aux, n_scatter_aux_d, sizeof(int) * n_aux, cudaMemcpyDeviceToHost);
+  cudaMemcpy(status_ID_aux, status_ID_aux_d, sizeof(int) * n_aux, cudaMemcpyDeviceToHost);
 
   printf("%f\n", All.Tau);
 
@@ -444,5 +470,7 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int min_id, int max_
       p[3*(min_id+i)+l] = p_aux[3*i + l]; 
       k[3*(min_id+i)+l] = k_aux[3*i + l]; 
     }    
+    n_scatter[min_id + i] = n_scatter_aux[i];
+    status_ID[min_id + i] = status_ID_aux[i];
   }
 }

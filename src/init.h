@@ -4,6 +4,9 @@
 FLOAT * InitCreationFrequency(int n_points);
 FLOAT * InitCreationPosition(int n_points);
 FLOAT * InitCreationDirection(int n_points);
+int * InitCreationInteger(int n_points);
+void InitStatus(int *n, int n_points);
+void InitNScatt(int *n, int n_points);
 
 void InitFrequency(FLOAT *x, int n_points);
 void InitPosition(FLOAT *p, int n_points);

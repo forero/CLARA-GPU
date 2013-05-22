@@ -4,6 +4,16 @@
 #include "struct.h"
 #include "init.h"
 
+int * InitCreationInteger(int n_points){
+  int *i;
+  if(!(i=malloc(n_points * sizeof(int)))){
+    fprintf(stderr, "Problem in the allocation of integer array\n");
+    exit(1);
+  }
+  return i;
+}
+
+
 FLOAT * InitCreationFrequency(int n_points){
   FLOAT *x;
   if(!(x=malloc(n_points * sizeof(FLOAT)))){
@@ -32,6 +42,20 @@ FLOAT * InitCreationDirection(int n_points){
   return k;
 }
 
+
+void InitNScatt(int *n, int n_points){
+  int i;
+  for(i=0;i<n_points;i++){
+    n[i] = 0;
+  }
+}
+
+void InitStatus(int *n, int n_points){
+  int i;
+  for(i=0;i<n_points;i++){
+    n[i] = ACTIVE;
+  }
+}
 
 void InitFrequency(FLOAT *x, int n_points){
   int i;

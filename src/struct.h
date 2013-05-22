@@ -1,7 +1,7 @@
 #ifndef STRUCT_H
 #define STRUCT_H
 
-#define FLOAT double
+#define FLOAT float
 
 /*Internal flag/constant difinitions*/
 #define EPSILON_DOUBLE     1E-6

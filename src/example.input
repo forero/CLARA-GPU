@@ -23,7 +23,7 @@ HomogeneousInit      0
 % define the tests to solve
 TestParallelVel      0
 TestParallelVelFast  0
-TestFirstScatter     0
+TestFirstScatter     1
 TestRND              0
 TestPerpVel          0
 

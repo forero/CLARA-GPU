@@ -8,6 +8,7 @@
 #define MAX_VEL_ITER       1000000
 #define MAX_ITER           1000000000
 #define MAX_FILENAME_SIZE  1024
+#define SIZE_TEST_ARRAY    10000
 
 /*possible error codes for the program*/
 #define EXCEEDED_ITERATIONS 10
@@ -31,7 +32,7 @@
 #define BOLTZMANN         1.3806e-16 /*cgs units*/
 #define PROTONMASS        1.6726e-24 /*cgs units*/
 #define GAMMA             1.66666 
-#define CHARGEELECTRON	  4.8032E-10  /*E.S.E			H.Scheffler/Elsässer Bau und Physik der Galaxies*/
+#define CHARGEELECTRON	  4.8032E-10  /*E.S.E  H.Scheffler/Elsässer Bau und Physik der Galaxies*/
 #define ELECTRONMASS	  9.109382616E-28			/*g				wikipedia*/
 #define PLANCK            6.626075E-27  /*cgs units*/
 

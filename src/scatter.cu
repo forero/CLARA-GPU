@@ -3,9 +3,9 @@
 #include <math.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
+#include <string.h>
 
-
-
+#include "io.h"
 #include "struct.h"
 /*this makes the compiler happy*/
 #include "vector.cu"
@@ -207,6 +207,7 @@ __device__ void RND_lyman_atom(FLOAT *Vel, FLOAT *DirPhoton, FLOAT *DirOutPhoton
 
 /*This makes the compiler happy*/
 #include "propagate.cu"
+#include "test.cu"
 
 /*
   This is CLARA's core.
@@ -322,6 +323,7 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int * n_scatter, int *
 
   __syncthreads();
 }
+
 
 /*
   This is the main driver for CLARA.
@@ -474,3 +476,4 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int *n_scatter, int 
     status_ID[min_id + i] = status_ID_aux[i];
   }
 }
+

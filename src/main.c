@@ -22,6 +22,11 @@ int main(int argc, char **argv){
 
   printf("%d\n", All.NPackages);
 
+  /*tests*/
+  if(All.TestFirstScatter){
+    
+  }
+
   /*Initialize the random number generator for the photons*/
   srand48(All.RandomSeed);
 
@@ -39,7 +44,6 @@ int main(int argc, char **argv){
   InitNScatt(n_scatter, All.NPackages);
   InitStatus(status_ID, All.NPackages);
   
-
   /*Write files to disk*/
   DumpPhotonList(x, p, k, n_scatter, status_ID, All.NPackages, "test.in");
 

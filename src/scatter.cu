@@ -244,7 +244,7 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int * n_scatter, int *
   FLOAT norm;
 
 
-  /*Initializes the random number generator*/
+  /*This is the statust of the random number generator for the current thread*/
   curandState localState = rngStates[id];
 
   /*Make the initialization for the photon*/
@@ -308,7 +308,7 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int * n_scatter, int *
   if(n_iter>= MAX_ITER){
     photon_status = SATURATED_ITERATIONS;
   }
-
+  __syncthreads();
 
   /*update the values*/
   p[idx] = pos[0];

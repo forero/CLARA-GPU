@@ -4,14 +4,14 @@ __global__ void TestFirstScatter(FLOAT *x, setup *S, curandState *state){
     int status;
     FLOAT a, nu_doppler;
     FLOAT tau_travel;
-    int id = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int id = blockIdx.x*blockDim.x + threadIdx.x;
     
     x_in = x[id];
 
     nu_doppler = CONSTANT_NU_DOPPLER*sqrt(S->Temperature/10000.0); /* in cm/s */
     a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
     RND_spherical(k_in_photon, state);    
-    status = PropagateStep(&x_in, &(k_in_photon[0]), &tau_travel, &a, state, S);
+    status = PropagateStep(&x_in, &(k_in_photon[0]), &tau_travel, &a, &state[id], S);
     x[id] = x_in;
 } 
 
@@ -60,15 +60,14 @@ extern "C" void all_tests(void){
   
   //initialization
   for(i=0;i<n_aux;i++){
-    x_aux[i] = 0.0;
+    x_aux[i] = All.InputFrequency;
   }
 
   //from host to device
   cudaMemcpy(x_aux_d, x_aux, sizeof(FLOAT) * n_aux, cudaMemcpyHostToDevice);
  
-
   //block size and number of blocks
-  blockSize = 512; // This is the number of threads inside a block
+  blockSize = 256; // This is the number of threads inside a block
   nBlocks = (n_aux)/blockSize + (n_aux%blockSize == 0?0:1); // This is the number of blocks
   fprintf(stdout, "nBlocks for testing %d\n", nBlocks);
 
@@ -87,5 +86,6 @@ extern "C" void all_tests(void){
     sprintf(fileout, "%s/%s", All.OutputDir, All.OutputTestFile);
     DumpArray(fileout, x_aux, n_aux);
   }
+  
 
 }

@@ -98,7 +98,7 @@ __device__ FLOAT LyaTau(curandState *state)
 {
     FLOAT tau;
     FLOAT tmp;
-    tmp = curand_uniform(state);;
+    tmp = curand_uniform(state);
     tau = -log(tmp);
     return tau;
 }

@@ -7,7 +7,7 @@ EXEC = clara
 
 
 
-OBJS = main.o struct.o parse.o io.o init.o transport.o scatter.o
+OBJS = main.o struct.o parse.o io.o init.o transport.o scatter.o 
 INCLUDES = struct.h parse.h io.h init.h transport.h scatter.h
 
 .SUFFIXES: .o .c 

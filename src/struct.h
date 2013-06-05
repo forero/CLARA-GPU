@@ -8,7 +8,7 @@
 #define MAX_VEL_ITER       1000000
 #define MAX_ITER           1000000000
 #define MAX_FILENAME_SIZE  1024
-#define SIZE_TEST_ARRAY    10000
+#define SIZE_TEST_ARRAY    50000
 
 /*possible error codes for the program*/
 #define EXCEEDED_ITERATIONS 10

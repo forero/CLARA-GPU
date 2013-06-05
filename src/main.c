@@ -24,7 +24,7 @@ int main(int argc, char **argv){
 
   /*tests*/
   if(All.TestFirstScatter){
-    
+    all_tests();    
   }
 
   /*Initialize the random number generator for the photons*/

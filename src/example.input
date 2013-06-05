@@ -2,7 +2,7 @@
 InputDir         /home/forero/Dropbox/CLARA-GPU/src
 
 % outputs
-OutputDir        /home/forero/Dropbox/CLARA-GPU/src
+OutputDir        /home/forero/Dropbox/CLARA-GPU/out
 OutputFile       FirstRun
 OutputTestFile	 TestRun
 
@@ -33,12 +33,12 @@ InputFrequency	     0.0
 
 % define some physical parameters of the problem to solve
 Temperature          10000.0 % in  Kelvin
-Tau 		     100.0
+Tau 		     10000.0
 Vmax		     0.0 % in km/s
 
 
 % parameters of the dust model
-TauDust               0.001
+TauDust               0.000
 DustAbsorptionProb    0.5
 
 % parameters for the tests

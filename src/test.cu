@@ -5,13 +5,19 @@ __global__ void TestFirstScatter(FLOAT *x, setup *S, curandState *state){
     FLOAT a, nu_doppler;
     FLOAT tau_travel;
     unsigned int id = blockIdx.x*blockDim.x + threadIdx.x;
+    FLOAT Tau, TauDust, DustAbsorptionProb; 
+    Tau = S->Tau;
+    TauDust = S->TauDust;
+    DustAbsorptionProb = S->DustAbsorptionProb;  
     
     x_in = x[id];
 
     nu_doppler = CONSTANT_NU_DOPPLER*sqrt(S->Temperature/10000.0); /* in cm/s */
     a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
     RND_spherical(k_in_photon, state);    
-    status = PropagateStep(&x_in, &(k_in_photon[0]), &tau_travel, &a, &state[id], S);
+    status = PropagateStep(&x_in, &(k_in_photon[0]), &tau_travel, &a, 
+			   Tau, TauDust, DustAbsorptionProb,
+			   &state[id]);
     x[id] = x_in;
 } 
 

@@ -142,7 +142,8 @@ __device__ FLOAT LyaCrossSection(FLOAT x, FLOAT a){
 
 
 __device__ int PropagateStep(FLOAT *x, FLOAT *Dir, FLOAT *tau_travel, FLOAT *a, 
-			     curandState *state, setup *S)
+			     FLOAT Tau, FLOAT TauDust, FLOAT DustAbsorptionProb,
+			     curandState *state)
 /*
   This fuction calculates the new frequency, direction and traveled
  distance by a single photon
@@ -200,7 +201,7 @@ __device__ int PropagateStep(FLOAT *x, FLOAT *Dir, FLOAT *tau_travel, FLOAT *a,
   rand_absorption = 0.0;
 
   
-  HIInteractionProb = (S->Tau*lya_sigma_ratio)/((S->Tau*lya_sigma_ratio) + S->TauDust);
+  HIInteractionProb = (Tau*lya_sigma_ratio)/((Tau*lya_sigma_ratio) + TauDust);
   rand_absorption = curand_uniform(state);
 
 
@@ -220,7 +221,7 @@ __device__ int PropagateStep(FLOAT *x, FLOAT *Dir, FLOAT *tau_travel, FLOAT *a,
     x_out = x_in; 
   }
 
-  if((rand_interaction > HIInteractionProb) && (S->TauDust>0.0) && (rand_absorption < S->DustAbsorptionProb)){
+  if((rand_interaction > HIInteractionProb) && (TauDust>0.0) && (rand_absorption < DustAbsorptionProb)){
     travel_tau = 0.0;
     status = ABSORBED;
   }

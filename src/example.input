@@ -13,9 +13,9 @@ OutputBinary           0
 RandomSeed	       1981
 
 % define the problem/test to solve
-NeufeldSlab          0
+NeufeldSlab          1
 NeufeldCube          0
-ExpandingSphere      1
+ExpandingSphere      0
 RotatingSphere       0
 HomogeneousInit      0
 
@@ -23,7 +23,7 @@ HomogeneousInit      0
 % define the tests to solve
 TestParallelVel      0
 TestParallelVelFast  0
-TestFirstScatter     1
+TestFirstScatter     0
 TestRND              0
 TestPerpVel          0
 
@@ -32,8 +32,8 @@ NPackages            512 % 5000
 InputFrequency	     0.0
 
 % define some physical parameters of the problem to solve
-Temperature          10000.0 % in  Kelvin
-Tau 		     10000.0
+Temperature          1.e4 % in  Kelvin
+Tau 		     5.e1
 Vmax		     0.0 % in km/s
 
 

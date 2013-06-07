@@ -223,6 +223,7 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int * n_scatter, int *
 
   /*physical variables that define the medium*/
   FLOAT a, nu_doppler, n_HI, v_thermal, BulkVel[3], temperature;  
+  FLOAT Tau, TauDust, DustAbsorptionProb;
 
   /*status variables*/
   int photon_status;
@@ -256,7 +257,10 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int * n_scatter, int *
   dir[2] = k[idz];
   x_photon = x[id];
   photon_status = status_ID[id]; 
-  
+  Tau = S->Tau;
+  TauDust = S->TauDust;
+  DustAbsorptionProb = S->DustAbsorptionProb;  
+
   if (id < N){    
     while(PropagateIsInside(pos[0], pos[1], pos[2], S) && (photon_status==ACTIVE) && (n_iter<MAX_ITER)){
 
@@ -282,7 +286,9 @@ __global__ void scatterStep(FLOAT *x, FLOAT *p, FLOAT *k, int * n_scatter, int *
                   
       /*--------------------------------------------------------------------------*/
       /*Change the frequency and the Propagation direction, find the displacement*/	
-      photon_status = PropagateStep(&x_photon, &(dir[0]), &r_travel, &a, &localState, S);	    	
+      photon_status = PropagateStep(&x_photon, &(dir[0]), &r_travel, &a, 
+				    Tau, TauDust, DustAbsorptionProb,
+				    &localState);	    	
       /*--------------------------------------------------------------------------*/
             
       /*Change the new direction to the lab frame value*/

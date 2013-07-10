@@ -46,6 +46,23 @@ extern "C" void get_lyman_perp_vel(float *u_1, float *u_2, int n_points)
 
   return;
 }
+__device__ void get_numbers(curandState *state, float * tmp1_out, float my_a, float my_x){
+  int counter=0;
+  int finished=0;
+  float tmp0, tmp1, tmp2;
+
+  while (finished == 0) {
+    tmp0 = (curand_uniform(state) - 0.5)*PI ;
+    tmp1 = (my_a * tan(tmp0)) + fabs(my_x); 
+    tmp2  = curand_uniform(state);          
+    if(tmp2 <= (expf(-(tmp1*tmp1)))) finished = 1;		
+    counter++;		
+    if(counter > MAX_VEL_ITER) {
+      finished = 1;		    
+    }	
+  }   
+  *tmp1_out = tmp1;
+}
 
 __global__ void get_lyman_parallel_vel(float *u_parallel, float *x, double a, curandState *state, int n_points) 
 /* 
@@ -58,9 +75,7 @@ __global__ void get_lyman_parallel_vel(float *u_parallel, float *x, double a, cu
 */
 {
   int id = blockIdx.x*blockDim.x + threadIdx.x;
-  int counter=0;
-  int finished=0;
-  float tmp0, tmp1, tmp2;
+  float tmp1;
   __shared__ float my_a;
   __shared__ float my_x;
 
@@ -68,18 +83,8 @@ __global__ void get_lyman_parallel_vel(float *u_parallel, float *x, double a, cu
   my_x = x[id];
   
   if(id<n_points){
-    while (finished == 0) {
-      tmp0 = (curand_uniform(&(state[id])) - 0.5)*PI ;
-      tmp1 = (my_a * tan(tmp0)) + fabs(my_x); 
-      tmp2  = curand_uniform(&(state[id]));
-      if(tmp2 <= (exp(-(tmp1*tmp1)))) finished = 1;		
-      counter++;		
-      if(counter > MAX_VEL_ITER) {
-	finished = 1;		    
-      }	
-    }
-    
-    if(x[id] > 0.0){
+    get_numbers(&(state[id]), &tmp1, my_a, my_x);
+    if(my_x > 0.0){
       u_parallel[id] = tmp1;
     }else{    
       u_parallel[id] = -tmp1;
@@ -520,7 +525,7 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
     /*Get all the atom velocities -  This is the part to be updated with a kernel*/
     for(i=0;i<n_points;i++){
       /*If the photon is not active anymore, I re-initialize its values*/
-      if(status[i]!=ACTIVE){
+      if((status[i]!=ACTIVE) & (n_total < All.TotalPhotons)){
 #ifdef DEBUG
 	fprintf(stdout, "Total photons: %d\n", n_total);
 	fflush(stdout);

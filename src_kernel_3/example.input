@@ -37,7 +37,7 @@ DustAbsorptionProb    0.5
 
 % parameters controling the algorithm
 InputFrequency         0.0 % 0 is the line center
-TotalLuminosity        50000 % in  UnitLymanLuminosity
+TotalLuminosity        2048 % in  UnitLymanLuminosity
 LuminosityPerPackage   1.0
 EffectiveEta           0.71
 EffectiveDust          1.0e-3

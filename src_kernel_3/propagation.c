@@ -102,33 +102,13 @@ void PropagateAll(void)
     
     /*initialize the packages*/
     PhotonListInitialize(Ph);
-    
-    if(All.OutputInitList){
-	sprintf(FileName, "%s/%s_in.proc.%d.ascii", All.OutputDir, All.OutputFile, ThisProc);
-	SavePhotonListAscii(FileName, Ph);
-    }
-    
-
-    
+        
     /*propagate each package*/
     status = PropagatePackage(Ph->PosX, Ph->PosY, Ph->PosZ,
 			      Ph->DirX, Ph->DirY, Ph->DirZ,
 			      Ph->ScatterHI, Ph->x_out, Ph->Active, 
 			      n_packages);
     
-
-    if(All.OutputFinalList){
-	sprintf(FileName, "%s/%s_out.proc.%d.ascii", All.OutputDir, All.OutputFile, ThisProc);
-	OpenPhotonListAscii(FileName, Ph);
-    }
-
-    for(i=0;i<n_packages;i++){
-	if(All.OutputFinalList){
-	  sprintf(FileName, "%s/%s_out.proc.%d.ascii", All.OutputDir, All.OutputFile, ThisProc);
-	  AppendPhotonListAscii(FileName, Ph, i);    
-	}    
-    }
-    fprintf(stdout, "finished writing (prc %d)\n", ThisProc);
     /*free the memory*/
     PhotonFree(Ph);
 }

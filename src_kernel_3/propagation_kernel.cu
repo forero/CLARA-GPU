@@ -273,6 +273,55 @@ int count_active(int *status, int n_points){
   return n_active;
 }
 
+void PhotonInitialize(double *PosX, double *PosY, double *PosZ, double *DirX, double *DirY, double *DirZ){
+    int i;
+    double theta, phi;
+
+
+    RND_spherical(DirX, DirY, DirZ);
+    *PosX = 0.0;
+    *PosY = 0.0;
+    *PosZ = 0.0;
+    
+    if(All.HomogeneousInit){
+      if(All.NeufeldCube){
+	*PosX = 2.0*(drand48()-0.5)*All.SlabLength;
+	*PosY = 2.0*(drand48()-0.5)*All.SlabLength;
+	*PosZ = 2.0*(drand48()-0.5)*All.SlabLength;
+      }
+      
+      if(All.ExpandingSphere){
+	*PosX = 2.0*(drand48()-0.5)*All.SlabLength;
+	*PosY = 2.0*(drand48()-0.5)*All.SlabLength;
+	*PosZ = 2.0*(drand48()-0.5)*All.SlabLength;
+	do{
+	  *PosX = 2.0*(drand48()-0.5)*All.SlabLength;
+	  *PosY = 2.0*(drand48()-0.5)*All.SlabLength;
+	  *PosZ = 2.0*(drand48()-0.5)*All.SlabLength;
+	}while(PropagateIsInside(*PosX, *PosY, *PosZ)==0);	    
+      }	  
+      
+      if(All.NeufeldSlab){
+	*PosX = 2.0*(drand48()-0.5)*All.SlabLength;
+	*PosY = 0.0;
+	*PosZ = 0.0;
+      }
+    }    
+
+    if(All.SimulationCube){
+      theta = acos(drand48());
+      phi = 2.0*PI*drand48();
+      *DirX = sin(theta)*cos(phi);
+      *DirY = sin(theta)*sin(phi);
+      *DirZ = cos(theta);
+      *PosX = 2.0*(drand48()-0.5)*All.SlabLength;
+      *PosY = 2.0*(drand48()-0.5)*All.SlabLength;
+      *PosZ = All.SlabLength/All.Tau;
+    }
+
+}
+
+
 
 int PropagateStep(float *v_parallel, float *v_perp_1, float *v_perp_2, float *x_in, float *x_out, double *k_in_x, double *k_in_y, double *k_in_z, double *r_travel, int *status, double a, double n_HI, int n_points) 
 /* Calculates: 
@@ -349,6 +398,38 @@ int PropagateStep(float *v_parallel, float *v_perp_1, float *v_perp_2, float *x_
     return 0;
 }
 
+void OpenAsciiFile(char *fname)
+{
+    FILE *f;
+    if(!(f = fopen(fname,"w")))
+    {
+	fprintf(stderr,"DumpPhotonList: Problem opening file %s\n",fname);
+	exit(0);
+
+    }
+    fprintf(f, "# %d %e %e %e %e %e\n", 50000, All.Tau, All.Temperature, All.InputFrequency, All.TauDust, All.DustAbsorptionProb);
+    fclose(f);
+}
+
+
+void AppendAsciiFile(char *fname, double PosX, double PosY, double PosZ, double DirX, double DirY, double DirZ, double x_out, int status, int n_scatter)
+{
+    FILE *f;
+
+    if(!(f = fopen(fname,"a")))
+    {
+	fprintf(stderr,"DumpPhotonList: Problem opening file %s\n",fname);
+	exit(0);
+    }
+
+    fprintf(f,"%e %e %e %e %e %e %e %d %d\n", 
+	    PosX, PosY, PosZ,
+	    DirX, DirY, DirZ, 
+	    x_out, status, n_scatter);
+    fclose(f);
+}
+
+
 extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ, 
 		     double *DirX, double *DirY, double *DirZ, int *n_scatt, 
 		     double *x_in, int *status, int n_points){
@@ -377,6 +458,13 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
     int nBlocks, blockSize;
     n_iter=0;
     n_global_scatt=0;
+    char FileName[MAX_FILENAME_SIZE];
+    int n_total;
+
+    if(All.OutputFinalList){
+	sprintf(FileName, "%s/%s_out.ascii", All.OutputDir, All.OutputFile);
+	OpenAsciiFile(FileName);
+    }
 
     /* auxiliary variables */
     if(!(x_aux_in = (float *)malloc(sizeof(float) * n_points))){
@@ -394,17 +482,17 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
       exit(1);
     }
 
-    if(!(v_parallel = (float *)malloc(sizeof(double) * n_points))){
+    if(!(v_parallel = (float *)malloc(sizeof(float) * n_points))){
       fprintf(stderr, "Problem with r_travel_aux allocation\n");
       exit(1);
     }
 
-    if(!(v_perp_1 = (float *)malloc(sizeof(double) * n_points))){
+    if(!(v_perp_1 = (float *)malloc(sizeof(float) * n_points))){
       fprintf(stderr, "Problem with r_travel_aux allocation\n");
       exit(1);
     }
 
-    if(!(v_perp_2 = (float *)malloc(sizeof(double) * n_points))){
+    if(!(v_perp_2 = (float *)malloc(sizeof(float) * n_points))){
       fprintf(stderr, "Problem with r_travel_aux allocation\n");
       exit(1);
     }
@@ -424,120 +512,116 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
     initRNG<<<nBlocks, blockSize>>>(d_rngStates, All.RandomSeed);
    
 
-    /* count the number of active photons */
-    n_active = count_active(status, n_points);
-#ifdef DEBUG
-    fprintf(stdout, "Active photons: %d", n_active);
-    fflush(stdout);
-#endif
-    /* difuse the photon in space and frequency until it gets out */
-    while(n_active>0){
 
+
+
+    n_total = 0;
+    while(n_total<5000){
     /*Get all the atom velocities -  This is the part to be updated with a kernel*/
-      for(i=0;i<n_points;i++){
-	Pos[0] = PosX[i];
-	Pos[1] = PosY[i];
-	Pos[2] = PosZ[i];
-	stat = status[i];
-	if(stat==ACTIVE){
-	  x_aux_in[i] = x_in[i];    
-	  x_aux_out[i] = x_in[i];    
-	}else{
-	  x_aux_in[i] = 0.0;
-	  x_aux_out[i] = 0.0;
-	}
+    for(i=0;i<n_points;i++){
+      /*If the photon is not active anymore, I re-initialize its values*/
+      if(status[i]!=ACTIVE){
+#ifdef DEBUG
+	fprintf(stdout, "Total photons: %d\n", n_total);
+	fflush(stdout);
+#endif
+	n_total++;
+	AppendAsciiFile(FileName, PosX[i], PosY[i], PosZ[i], DirX[i], DirY[i], DirZ[i], x_in[i], status[i], n_scatt[i]);
+	x_in[i] = 0.0;
+	n_scatt[i] = 0;
+	PhotonInitialize(&(PosX[i]), &(PosY[i]), &(PosZ[i]), &(DirX[i]), &(DirY[i]), &(DirZ[i]));
+	status[i] = ACTIVE;
+      }
 
+      Pos[0] = PosX[i];
+      Pos[1] = PosY[i];
+      Pos[2] = PosZ[i];
+      stat = status[i];
+      x_aux_in[i] = x_in[i];    
+      x_aux_out[i] = x_in[i];    
+      
+      /* get the temperature at this point*/
+      PropagateGetTemperature(&temperature, Pos);
+      
+      /*Get the thermal velocity and doppler broadening*/
+      nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
+      a = Lya_nu_line_width_CGS/(2.0*nu_doppler);		
+    }
+      
+    /****THIS IS THE GPU PART*****/
+    /*get first the parallel velocity*/
+    cudaMemcpy(x_aux_d, x_aux_in, sizeof(float) * n_points, cudaMemcpyHostToDevice);
+    get_lyman_parallel_vel<<<nBlocks, blockSize>>>(v_parallel_d, x_aux_d, a, d_rngStates, n_points);      
+    cudaMemcpy(v_parallel, v_parallel_d, sizeof(float) * n_points, cudaMemcpyDeviceToHost);
+    
+    /*get the perpendicular velocity*/
+    get_lyman_perp_vel(v_perp_1, v_perp_2, n_points);	        
+    /***************************/
+    
+    for(i=0;i<n_points;i++){
+      /*Make the initialization*/
+      Pos[0] = PosX[i];
+      Pos[1] = PosY[i];
+      Pos[2] = PosZ[i];
+      Dir[0] = DirX[i];
+      Dir[1] = DirY[i];
+      Dir[2] = DirZ[i];
+      stat = status[i];
+      x_aux_in[i] = x_in[i];    
+      x_aux_out[i] = x_in[i];    
+      
+      /*If the photon is stil inside and active, update its direction of propagation and frequency 
+	to  gas rest frame */
+      if(PropagateIsInside(Pos[0],Pos[1],Pos[2])){
 	/* get the temperature at this point*/
 	PropagateGetTemperature(&temperature, Pos);
-
+	
+	/* get the number density at this point*/
+	PropagateGetNumberDensity(&n_HI, Pos);
+	
+	/*get the bulk velocity of the fluid at this point*/
+	PropagateGetBulkVel(BulkVel, Pos);
+	
 	/*Get the thermal velocity and doppler broadening*/
 	nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
-	a = Lya_nu_line_width_CGS/(2.0*nu_doppler);		
-      }
-
-      /****THIS IS THE GPU PART*****/
-      /*get first the parallel velocity*/
-      cudaMemcpyAsync(x_aux_d, x_aux_in, sizeof(float) * n_points, cudaMemcpyHostToDevice);
-      get_lyman_parallel_vel<<<nBlocks, blockSize>>>(v_parallel_d, x_aux_d, a, d_rngStates, n_points);      
-      cudaMemcpy(v_parallel, v_parallel_d, sizeof(float) * n_points, cudaMemcpyDeviceToHost);
-
-      /*get the perpendicular velocity*/
-      get_lyman_perp_vel(v_perp_1, v_perp_2, n_points);	
-
-
-
-      /***************************/
-
-
-      for(i=0;i<n_points;i++){
-	/*Make the initialization*/
-	Pos[0] = PosX[i];
-	Pos[1] = PosY[i];
-	Pos[2] = PosZ[i];
-	Dir[0] = DirX[i];
-	Dir[1] = DirY[i];
-	Dir[2] = DirZ[i];
-	stat = status[i];
-	if(stat==ACTIVE){
-	  x_aux_in[i] = x_in[i];    
-	  x_aux_out[i] = x_in[i];    
-	}else{
-	  x_aux_in[i] = 0.0;
-	  x_aux_out[i] = 0.0;
-	}
+	a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
+	v_thermal = (nu_doppler/Lya_nu_center_CGS)*C_LIGHT;/*In cm/s*/
 	
-	/*If the photon is stil inside and active, update its direction of propagation and frequency 
-	  to  gas rest frame */
-	if(PropagateIsInside(Pos[0],Pos[1],Pos[2])&&(stat==ACTIVE)){
-	  /* get the temperature at this point*/
-	  PropagateGetTemperature(&temperature, Pos);
-	  
-	  /* get the number density at this point*/
-	  PropagateGetNumberDensity(&n_HI, Pos);
-	  
-	  /*get the bulk velocity of the fluid at this point*/
-	  PropagateGetBulkVel(BulkVel, Pos);
-	  
-	  /*Get the thermal velocity and doppler broadening*/
-	  nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
-	  a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
-	  v_thermal = (nu_doppler/Lya_nu_center_CGS)*C_LIGHT;/*In cm/s*/
-	  
-	  /*change the value of the frequency to one comoving with the fluid*/
-	  PropagateLorentzFreqChange(&(x_aux_in[i]), Dir, BulkVel, v_thermal, -1); 
-	  
-	  /*change the direction of the photon to the fluid frame*/
-	  PropagateLorentzDirChange(&(Dir[0]), BulkVel, -1);
-	}
-	DirX[i] = Dir[0];
-	DirY[i] = Dir[1];
-	DirZ[i] = Dir[2];
+	/*change the value of the frequency to one comoving with the fluid*/
+	PropagateLorentzFreqChange(&(x_aux_in[i]), Dir, BulkVel, v_thermal, -1); 
+	
+	/*change the direction of the photon to the fluid frame*/
+	PropagateLorentzDirChange(&(Dir[0]), BulkVel, -1);
       }
-	  
-      PropagateGetNumberDensity(&n_HI, Pos);
-      PropagateGetTemperature(&temperature, Pos);
-      nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
-      a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
-      v_thermal = (nu_doppler/Lya_nu_center_CGS)*C_LIGHT;/*In cm/s*/
+      DirX[i] = Dir[0];
+      DirY[i] = Dir[1];
+      DirZ[i] = Dir[2];
+    }
+    
+    PropagateGetNumberDensity(&n_HI, Pos);
+    PropagateGetTemperature(&temperature, Pos);
+    nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
+    a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
+    v_thermal = (nu_doppler/Lya_nu_center_CGS)*C_LIGHT;/*In cm/s*/
+    
+    /*Change the frequency and the Propagation direction, find the displacement*/	
+    PropagateStep(v_parallel, v_perp_1, v_perp_2, x_aux_in, x_aux_out, DirX, DirY, DirZ, r_travel_aux, status, a, n_HI, n_points);	    	
+    
+    for(i=0;i<n_points;i++){
+      Pos[0] = PosX[i];
+      Pos[1] = PosY[i];
+      Pos[2] = PosZ[i];	
+      Dir[0] = DirX[i];
+      Dir[1] = DirY[i];
+      Dir[2] = DirZ[i];
+      stat = status[i];	
 
-      /*Change the frequency and the Propagation direction, find the displacement*/	
-      PropagateStep(v_parallel, v_perp_1, v_perp_2, x_aux_in, x_aux_out, DirX, DirY, DirZ, r_travel_aux, status, a, n_HI, n_points);	    	
-            
-      for(i=0;i<n_points;i++){
-	Pos[0] = PosX[i];
-	Pos[1] = PosY[i];
-	Pos[2] = PosZ[i];	
-	Dir[0] = DirX[i];
-	Dir[1] = DirY[i];
-	Dir[2] = DirZ[i];
-	stat = status[i];	
-
-	if(PropagateIsInside(Pos[0],Pos[1],Pos[2])&&(stat==ACTIVE)){
-	  /* get the temperature at this point*/
-	  PropagateGetTemperature(&temperature, Pos);
-	  
-	  /* get the number density at this point*/
-	  PropagateGetNumberDensity(&n_HI, Pos);
+      if(PropagateIsInside(Pos[0],Pos[1],Pos[2])&&(stat==ACTIVE)){
+	/* get the temperature at this point*/
+	PropagateGetTemperature(&temperature, Pos);
+	
+	/* get the number density at this point*/
+	PropagateGetNumberDensity(&n_HI, Pos);
 	  
 	  /*get the bulk velocity of the fluid at this point*/
 	  PropagateGetBulkVel(BulkVel, Pos);
@@ -572,18 +656,10 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
 	  DirY[i] = Dir[1];
 	  DirZ[i] = Dir[2];	  
 	  x_in[i] = x_aux_out[i];
-	}
-
-
-	if(i==0){
-	  n_global_scatt++;
-	}
       }
-      n_active = count_active(status, n_points);
-#ifdef DEBUG      
-      //            fprintf(stdout, "Active photons: %d, global_n_scatt %d \n", n_active, n_global_scatt);
-#endif
     }
+    }
+    
 
     free(x_aux_in);
     free(x_aux_out);

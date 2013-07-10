@@ -415,7 +415,7 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
 
 
     
-    blockSize = 16; // This is the number of threads inside a block
+    blockSize = 128; // This is the number of threads inside a block
     nBlocks = (n_points)/blockSize + (n_points%blockSize == 0?0:1); // This is the number of blocks
     fprintf(stdout, "nBlocks %d\n", nBlocks);
     
@@ -581,7 +581,7 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
       }
       n_active = count_active(status, n_points);
 #ifdef DEBUG      
-            fprintf(stdout, "Active photons: %d, global_n_scatt %d \n", n_active, n_global_scatt);
+      //            fprintf(stdout, "Active photons: %d, global_n_scatt %d \n", n_active, n_global_scatt);
 #endif
     }
 

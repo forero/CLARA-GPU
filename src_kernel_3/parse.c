@@ -149,9 +149,17 @@ void ReadParameters(char *fname)
   addr[nt] = &All.InputFrequency;
   id[nt++] = DOUBLE;
 
-  strcpy(tag[nt], "TotalLuminosity");
-  addr[nt] = &All.TotalLuminosity;
-  id[nt++] = DOUBLE;
+  strcpy(tag[nt], "TotalPhotons");
+  addr[nt] = &All.TotalPhotons;
+  id[nt++] = INT;
+
+  strcpy(tag[nt], "BusyPhotons");
+  addr[nt] = &All.BusyPhotons;
+  id[nt++] = INT;
+
+  strcpy(tag[nt], "BlockSize");
+  addr[nt] = &All.BlockSize;
+  id[nt++] = INT;
 
   strcpy(tag[nt], "RandomSeed");
   addr[nt] = &All.RandomSeed;

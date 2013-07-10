@@ -503,7 +503,7 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
 
 
     
-    blockSize = 128; // This is the number of threads inside a block
+    blockSize = All.BlockSize; // This is the number of threads inside a block
     nBlocks = (n_points)/blockSize + (n_points%blockSize == 0?0:1); // This is the number of blocks
     fprintf(stdout, "nBlocks %d\n", nBlocks);
     
@@ -516,7 +516,7 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
 
 
     n_total = 0;
-    while(n_total<5000){
+    while(n_total<All.TotalPhotons){
     /*Get all the atom velocities -  This is the part to be updated with a kernel*/
     for(i=0;i<n_points;i++){
       /*If the photon is not active anymore, I re-initialize its values*/

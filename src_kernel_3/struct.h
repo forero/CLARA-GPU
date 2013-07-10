@@ -80,7 +80,9 @@ typedef struct global_setup
     double Temperature;
     double Tau;
     double InputFrequency;
-    double TotalLuminosity;
+    int TotalPhotons;
+    int BusyPhotons;
+  int BlockSize;
     double NumberDensityHI;
 
 

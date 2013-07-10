@@ -92,7 +92,7 @@ void PropagateAll(void)
     PropagateAllSetup();
     
     /*get the number of photons to propagate*/
-    n_packages = (int)((All.TotalLuminosity/SizeProc)/All.LuminosityPerPackage);
+    n_packages = All.BusyPhotons;
 #ifdef DEBUG
     fprintf(stdout, "%d packages to propagate\n", n_packages);
 #endif 

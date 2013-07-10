@@ -5,8 +5,8 @@
 
 /*Internal flag/constant difinitions*/
 #define EPSILON_DOUBLE     1E-6
-#define MAX_VEL_ITER       1000000
-#define MAX_ITER           1000000000
+#define MAX_VEL_ITER       10000000
+#define MAX_ITER           10000000
 #define MAX_FILENAME_SIZE  1024
 #define SIZE_TEST_ARRAY    50000
 

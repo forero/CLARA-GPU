@@ -448,7 +448,7 @@ extern "C" void scatter_bunch(FLOAT *x, FLOAT *p, FLOAT *k, int *n_scatter, int 
 
 
 
-  blockSize = 512; // This is the number of threads inside a block
+  blockSize = 100; // This is the number of threads inside a block
   nBlocks = (3*n_aux)/blockSize + (n_aux%blockSize == 0?0:1); // This is the number of blocks
   fprintf(stdout, "nBlocks %d\n", nBlocks);
 

@@ -10,7 +10,7 @@ void TransportPhotons(FLOAT *x, FLOAT *p, FLOAT *k, int *n_scatter, int *status_
   int n_packs;
   int i;
 
-  pack_size = 512;
+  pack_size = 51200;
   
   n_packs = n_photons/pack_size;
   last_pack_size = n_photons%pack_size;

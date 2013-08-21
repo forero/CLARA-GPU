@@ -107,6 +107,7 @@ void PropagateAll(void)
     status = PropagatePackage(Ph->PosX, Ph->PosY, Ph->PosZ,
 			      Ph->DirX, Ph->DirY, Ph->DirZ,
 			      Ph->ScatterHI, Ph->x_out, Ph->Active, 
+			      Ph->ID,
 			      n_packages);
     
     /*free the memory*/

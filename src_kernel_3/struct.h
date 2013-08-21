@@ -148,6 +148,8 @@ typedef struct lyman_RT_photons_str
   int *ScatterHI;    /* Number of scatters with HI*/
   int *ScatterDust;  /* Number of scatters with dust particles*/
   int *Wrong;        /* Number of scatters where the approximation is wrongly used*/
+  int *ID;
+
     
   /*parent grid data*/
   int N_grid_x;

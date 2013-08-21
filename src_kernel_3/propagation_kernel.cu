@@ -90,7 +90,7 @@ __global__ void get_lyman_parallel_vel(float *u_parallel, float *x, double a, cu
       u_parallel[id] = -tmp1;
     }
   }
-  //  __syncthreads();
+  __syncthreads();
 }
 
 
@@ -417,7 +417,7 @@ void OpenAsciiFile(char *fname)
 }
 
 
-void AppendAsciiFile(char *fname, double PosX, double PosY, double PosZ, double DirX, double DirY, double DirZ, double x_out, int status, int n_scatter)
+void AppendAsciiFile(char *fname, int ID, double PosX, double PosY, double PosZ, double DirX, double DirY, double DirZ, double x_out, int status, int n_scatter)
 {
     FILE *f;
 
@@ -427,8 +427,8 @@ void AppendAsciiFile(char *fname, double PosX, double PosY, double PosZ, double 
 	exit(0);
     }
 
-    fprintf(f,"%e %e %e %e %e %e %e %d %d\n", 
-	    PosX, PosY, PosZ,
+    fprintf(f,"%d %e %e %e %e %e %e %e %d %d\n", 
+	    ID, PosX, PosY, PosZ,
 	    DirX, DirY, DirZ, 
 	    x_out, status, n_scatter);
     fclose(f);
@@ -436,8 +436,8 @@ void AppendAsciiFile(char *fname, double PosX, double PosY, double PosZ, double 
 
 
 extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ, 
-		     double *DirX, double *DirY, double *DirZ, int *n_scatt, 
-		     double *x_in, int *status, int n_points){
+				double *DirX, double *DirY, double *DirZ, int *n_scatt, 
+				double *x_in, int *status, int *ID, int n_points){
     int i;
     double Pos[3];
     double Dir[3];
@@ -463,12 +463,18 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
     int nBlocks, blockSize;
     n_iter=0;
     n_global_scatt=0;
-    char FileName[MAX_FILENAME_SIZE];
+    char FileNameOut[MAX_FILENAME_SIZE];
+    char FileNameIn[MAX_FILENAME_SIZE];
     int n_total;
 
     if(All.OutputFinalList){
-	sprintf(FileName, "%s/%s_out.ascii", All.OutputDir, All.OutputFile);
-	OpenAsciiFile(FileName);
+      sprintf(FileNameOut, "%s/%s_out.ascii", All.OutputDir, All.OutputFile);
+      OpenAsciiFile(FileNameOut);
+    }
+
+    if(All.OutputInitList){
+      sprintf(FileNameIn, "%s/%s_in.ascii", All.OutputDir, All.OutputFile);
+      OpenAsciiFile(FileNameIn);
     }
 
     /* auxiliary variables */
@@ -476,92 +482,116 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
       fprintf(stderr, "Problem with x_aux allocation\n");
       exit(1);
     }
-
     if(!(x_aux_out = (float *)malloc(sizeof(float) * n_points))){
       fprintf(stderr, "Problem with x_aux allocation\n");
       exit(1);
     }
-
     if(!(r_travel_aux = (double *)malloc(sizeof(double) * n_points))){
       fprintf(stderr, "Problem with r_travel_aux allocation\n");
       exit(1);
     }
-
     if(!(v_parallel = (float *)malloc(sizeof(float) * n_points))){
       fprintf(stderr, "Problem with r_travel_aux allocation\n");
       exit(1);
     }
-
     if(!(v_perp_1 = (float *)malloc(sizeof(float) * n_points))){
       fprintf(stderr, "Problem with r_travel_aux allocation\n");
       exit(1);
     }
-
     if(!(v_perp_2 = (float *)malloc(sizeof(float) * n_points))){
       fprintf(stderr, "Problem with r_travel_aux allocation\n");
       exit(1);
     }
 
-    /*Device Malloc*/
+    /* memory allocation for the variables to be used in the device*/
     cudaMalloc((void **) &v_parallel_d, n_points * sizeof(float));
     cudaMalloc((void **) &x_aux_d, n_points * sizeof(float));
+    if(!v_parallel_d || !x_aux_d){
+      fprintf(stderr, "Problem with device memory allocation\n");
+      exit(1);
+    }
 
 
-    
-    blockSize = All.BlockSize; // This is the number of threads inside a block
-    nBlocks = (n_points)/blockSize + (n_points%blockSize == 0?0:1); // This is the number of blocks
+    /*Paremeter setting for the GPU calculation*/
+    blockSize = All.BlockSize; /* number of threads inside a block*/
+    nBlocks = (n_points)/blockSize + (n_points%blockSize == 0?0:1); /*number of blocks*/
     fprintf(stdout, "nBlocks %d\n", nBlocks);
     
-    /*RNG*/
+    /* Initialization of the seeds for the RNG*/
     cudaResult = cudaMalloc((void **)&d_rngStates, blockSize * nBlocks * sizeof(curandState));
     initRNG<<<nBlocks, blockSize>>>(d_rngStates, All.RandomSeed);
-   
 
-
-
-
-    n_total = 0;
-    while(n_total<All.TotalPhotons){
-    /*Get all the atom velocities -  This is the part to be updated with a kernel*/
+    /*Sanity check. All photons must be active*/
     for(i=0;i<n_points;i++){
-      /*If the photon is not active anymore, I re-initialize its values*/
-      if((status[i]!=ACTIVE) & (n_total < All.TotalPhotons)){
+      if(status[i]!=ACTIVE){
+	fprintf(stderr, "Error. All photons must be initialized as active.\n");
+	exit(1);
+      }
+    }
+    
+    /*      
+	    There is a big while loop running until all the photons have
+	    been propagated.
+	    
+	    n_total is the number of photons to be propagated.
+	    n_points is the total number of photons active at a given point.
+
+	    In general, n_points < n_total, every time an active
+	    photon is taken out of the volume, a new photons is
+	    reinitialized.
+    */
+
+    n_total = 0;    
+    while(n_total<All.TotalPhotons){            
+      
+      /*
+	Initialization of useful variable
+       */
+      for(i=0;i<n_points;i++){
+	if((status[i]!=ACTIVE) & (n_total < All.TotalPhotons)){
 #ifdef DEBUG
-	fprintf(stdout, "Total photons: %d\n", n_total);
-	fflush(stdout);
+	 
+	  if(!(n_total%(All.TotalPhotons/100))){
+	    fprintf(stdout, "Total photons: %d (%.2f %)\r", n_total, (100.0*n_total/All.TotalPhotons));
+	    fflush(stdout);
+	  }
+	  
 #endif
-	n_total++;
-	AppendAsciiFile(FileName, PosX[i], PosY[i], PosZ[i], DirX[i], DirY[i], DirZ[i], x_in[i], status[i], n_scatt[i]);
-	x_in[i] = 0.0;
-	n_scatt[i] = 0;
-	PhotonInitialize(&(PosX[i]), &(PosY[i]), &(PosZ[i]), &(DirX[i]), &(DirY[i]), &(DirZ[i]));
-	status[i] = ACTIVE;
+	  n_total++;
+	  AppendAsciiFile(FileNameOut, ID[i], PosX[i], PosY[i], PosZ[i], DirX[i], DirY[i], DirZ[i], 
+			  x_in[i], status[i], n_scatt[i]);
+	  x_in[i] = 0.0;
+	  n_scatt[i] = 0;
+	  PhotonInitialize(&(PosX[i]), &(PosY[i]), &(PosZ[i]), &(DirX[i]), &(DirY[i]), &(DirZ[i]));
+	  status[i] = ACTIVE;
+	  ID[i] = All.TotalPhotons + n_total;
+	}
+	x_aux_in[i] = x_in[i];    
+	x_aux_out[i] = x_in[i];    	
+
+	if(n_scatt[i]==0){
+	  AppendAsciiFile(FileNameIn, ID[i], PosX[i], PosY[i], PosZ[i], DirX[i], DirY[i], DirZ[i], 
+			  x_in[i], status[i], n_scatt[i]);
+	}
       }
 
-      Pos[0] = PosX[i];
-      Pos[1] = PosY[i];
-      Pos[2] = PosZ[i];
-      stat = status[i];
-      x_aux_in[i] = x_in[i];    
-      x_aux_out[i] = x_in[i];    
-      
-      /* get the temperature at this point*/
-      PropagateGetTemperature(&temperature, Pos);
-      
-      /*Get the thermal velocity and doppler broadening*/
-      nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
+      /*Assuming homogeneous temperature, compute nu_doppler and a at position Pos*/
+      Pos[0] = PosX[0];
+      Pos[1] = PosY[0];
+      Pos[2] = PosZ[0];
+      PropagateGetTemperature(&temperature, Pos);	
+      nu_doppler = CONSTANT_NU_DOPPLER * sqrt(temperature/10000.0); /* in cm/s */
       a = Lya_nu_line_width_CGS/(2.0*nu_doppler);		
-    }
       
-    /****THIS IS THE GPU PART*****/
-    /*get first the parallel velocity*/
-    cudaMemcpy(x_aux_d, x_aux_in, sizeof(float) * n_points, cudaMemcpyHostToDevice);
-    get_lyman_parallel_vel<<<nBlocks, blockSize>>>(v_parallel_d, x_aux_d, a, d_rngStates, n_points);      
-    cudaMemcpy(v_parallel, v_parallel_d, sizeof(float) * n_points, cudaMemcpyDeviceToHost);
-    
-    /*get the perpendicular velocity*/
-    get_lyman_perp_vel(v_perp_1, v_perp_2, n_points);	        
-    /***************************/
+            
+      /*Use the GPU to get a list of parallel velocities of size n_points*/
+      cudaMemcpy(x_aux_d, x_aux_in, sizeof(float) * n_points, cudaMemcpyHostToDevice);
+      get_lyman_parallel_vel<<<nBlocks, blockSize>>>(v_parallel_d, x_aux_d, a, d_rngStates, n_points);
+      cudaMemcpy(v_parallel, v_parallel_d, sizeof(float) * n_points, cudaMemcpyDeviceToHost);
+      
+      /*Use the CPU to get a list of perpendicular velocities of size n_points*/
+      get_lyman_perp_vel(v_perp_1, v_perp_2, n_points);	        
+      /***************************/
     
     for(i=0;i<n_points;i++){
       /*Make the initialization*/
@@ -628,39 +658,39 @@ extern "C" int PropagatePackage(double *PosX, double *PosY, double *PosZ,
 	/* get the number density at this point*/
 	PropagateGetNumberDensity(&n_HI, Pos);
 	  
-	  /*get the bulk velocity of the fluid at this point*/
-	  PropagateGetBulkVel(BulkVel, Pos);
-
-	  /*Get the thermal velocity and doppler broadening*/
-	  nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
-	  a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
-	  v_thermal = (nu_doppler/Lya_nu_center_CGS)*C_LIGHT;/*In cm/s*/
-	  
-	  /*Change the new direction to the lab frame value*/
-	  PropagateLorentzDirChange(Dir, BulkVel, 1);
-	  
-	  /*Change the frequency comoving to the lab frame value*/
-	  PropagateLorentzFreqChange(&(x_aux_out[i]), Dir, BulkVel, v_thermal, 1); 
-	  
-	  /*Update the position*/
-	  Pos[0] += r_travel_aux[i] * Dir[0];	    
-	  Pos[1] += r_travel_aux[i] * Dir[1];	    
-	  Pos[2] += r_travel_aux[i] * Dir[2];    
-	  n_scatt[i]++;
-
-
-	  /*update the final status of the photon, just to know if it was absorbed, or what*/
-	  if(!(PropagateIsInside(Pos[0],Pos[1],Pos[2]))){
-	    status[i] = OUT_OF_BOX;
-	  }
-
-	  PosX[i] = Pos[0];
-	  PosY[i] = Pos[1];
-	  PosZ[i] = Pos[2];
-	  DirX[i] = Dir[0];
-	  DirY[i] = Dir[1];
-	  DirZ[i] = Dir[2];	  
-	  x_in[i] = x_aux_out[i];
+	/*get the bulk velocity of the fluid at this point*/
+	PropagateGetBulkVel(BulkVel, Pos);
+	
+	/*Get the thermal velocity and doppler broadening*/
+	nu_doppler = CONSTANT_NU_DOPPLER*sqrt(temperature/10000.0); /* in cm/s */
+	a = Lya_nu_line_width_CGS/(2.0*nu_doppler);
+	v_thermal = (nu_doppler/Lya_nu_center_CGS)*C_LIGHT;/*In cm/s*/
+	
+	/*Change the new direction to the lab frame value*/
+	PropagateLorentzDirChange(Dir, BulkVel, 1);
+	
+	/*Change the frequency comoving to the lab frame value*/
+	PropagateLorentzFreqChange(&(x_aux_out[i]), Dir, BulkVel, v_thermal, 1); 
+	
+	/*Update the position*/
+	Pos[0] += r_travel_aux[i] * Dir[0];	    
+	Pos[1] += r_travel_aux[i] * Dir[1];	    
+	Pos[2] += r_travel_aux[i] * Dir[2];    
+	n_scatt[i]++;
+	
+	
+	/*update the final status of the photon, just to know if it was absorbed, or what*/
+	if(!(PropagateIsInside(Pos[0],Pos[1],Pos[2]))){
+	  status[i] = OUT_OF_BOX;
+	}
+	
+	PosX[i] = Pos[0];
+	PosY[i] = Pos[1];
+	PosZ[i] = Pos[2];
+	DirX[i] = Dir[0];
+	DirY[i] = Dir[1];
+	DirZ[i] = Dir[2];	  
+	x_in[i] = x_aux_out[i];
       }
     }
     }

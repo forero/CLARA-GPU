@@ -153,6 +153,11 @@ lyman_RT_photons * PhotonListCreate(int N_packages){
     exit(0);
   }
 
+  if(!(Ph->ID = malloc(N_packages*sizeof(int)))){
+    fprintf(stderr, "Problem in creation of PhotontList (ID)\n");
+    exit(0);
+  }
+
   
   Ph->N_grid_x = 0;
   Ph->N_grid_y = 0;
@@ -175,6 +180,7 @@ lyman_RT_photons * PhotonListCreate(int N_packages){
       Ph->PosY[i]     = 0.0;
       Ph->PosZ[i]     = 0.0;
       Ph->Intensity[i] = 1.0;
+      Ph->ID[i] = i;
   }
 
 #ifdef DEBUG

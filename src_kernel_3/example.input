@@ -26,7 +26,7 @@ OutputTestFile       test_b
 
 % define some physical parameters of the problem to solve
 Temperature          10000.0 % in  Kelvin
-Tau                  5.0e2
+Tau                  1.0e3
 NumberDensityHI      1e5
 VmaxSphere           0.0  % in km/s
 
@@ -37,9 +37,9 @@ DustAbsorptionProb    0.5
 
 % parameters controling the algorithm
 InputFrequency         0.0 % 0 is the line center
-BlockSize	       128
-BusyPhotons	       2048
-TotalPhotons           5000 % in  UnitLymanLuminosity
+BlockSize	       1024
+BusyPhotons	       1000000
+TotalPhotons           10000 % in  UnitLymanLuminosity
 LuminosityPerPackage   1.0
 EffectiveEta           0.71
 EffectiveDust          1.0e-3
@@ -49,7 +49,7 @@ UseVelocities          0
 UseAtomSpeedUp         0
 
 % output options for the photon list
-OutputInitList         0
+OutputInitList         1
 OutputFinalList        1
 OutputBinary           0
 
